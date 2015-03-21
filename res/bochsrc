@@ -1,0 +1,6 @@
+megs: 1024
+ata1-slave: type=cdrom, path="./kernel.iso", status=inserted
+boot: cdrom
+cpu: count=1, reset_on_triple_fault=0
+magic_break: enabled=1
+display_library: x, options="gui_debug"

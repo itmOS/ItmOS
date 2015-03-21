@@ -7,6 +7,12 @@ export LDFLAGS = -m elf_i386
 export AR = ar
 export ARFLAGS = rcs
 
+# Use qemu by default
+EMUL := qemu
+
+BOCHS = bochs
+BOCHSFLAGS = -f res/bochsrc -q
+
 QEMU = qemu-system-x86_64
 QEMUFLAGS = -m 1024
 
@@ -19,6 +25,15 @@ SUBMODULES = boot kernel
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 
 all: $(ISO)
+
+ifeq ($(EMUL), qemu)
+run: run_qemu
+else ifeq ($(EMUL), bochs)
+run: run_bochs
+endif
+
+run_bochs: $(ISO)
+	$(BOCHS) $(BOCHSFLAGS)
 
 run_qemu: $(ISO)
 	$(QEMU) $(QEMUFLAGS) -cdrom $(ISO)
