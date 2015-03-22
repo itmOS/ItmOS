@@ -29,11 +29,7 @@ OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 
 all: $(ISO)
 
-ifeq ($(EMUL), qemu)
-run: run_qemu
-else ifeq ($(EMUL), bochs)
-run: run_bochs
-endif
+run: run_$(EMUL)
 
 run_bochs: $(ISO)
 	$(BOCHS) $(BOCHSFLAGS)
