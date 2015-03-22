@@ -7,6 +7,7 @@ global tty_endl
 global tty_set_style
 global tty_save_style
 global tty_restore_style
+global tty_printf
 
 ;;; Clear the screen
 tty_clear:
@@ -19,6 +20,30 @@ tty_clear:
 	repe stosd
 	pop ecx
 	pop edi
+	ret
+
+extern sprintf
+tty_printf:
+	push ebp
+	mov ebp, esp
+	push esi
+
+	sub esp, screen_width
+	lea esi, [ebp + 12]
+	push esi
+	sub esi, 4
+	mov esi, [esi]
+	push esi
+	lea esi, [esp + 8]
+	push esi
+	call sprintf
+	add esp, 12
+	mov esi, esp
+	call tty_puts
+	
+	mov esi, [esp + screen_width]
+	mov esp, ebp
+	pop ebp
 	ret
 
 ;;; Set text style
@@ -56,7 +81,7 @@ tty_restore_style:
 
 ;;; Put string to the cursor position
 ;;; esi -- zero-ended string
-tty_puts:	
+tty_puts:
 	push eax
 	push esi
 

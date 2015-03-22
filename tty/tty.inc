@@ -8,6 +8,7 @@ extern tty_putc
 extern tty_endl
 extern tty_save_style
 extern tty_restore_style
+extern tty_printf
 
 %define TTY_BLACK 0
 %define TTY_BLUE 1
@@ -46,6 +47,8 @@ pop eax
 %define TTY_SAVE_STYLE call tty_save_style
 
 %define TTY_RESTORE_STYLE call tty_restore_style
+
+%define TTY_PRINTF call tty_printf
 
 %macro TTY_PUTS_STYLED 2
 TTY_SAVE_STYLE

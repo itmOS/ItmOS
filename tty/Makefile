@@ -1,10 +1,10 @@
 OUTPUT = tty.a
-OBJ = tty.o
+OBJ = tty.o sprintf.o
 
 all: $(OUTPUT)
 
 $(OUTPUT): $(OBJ)
-	$(AR) $(ARFLAGS) $@ $<
+	$(AR) $(ARFLAGS) $@ $^
 
 clean:
 	rm -f $(OBJ) $(OUTPUT)
