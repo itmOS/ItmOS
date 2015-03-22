@@ -28,7 +28,6 @@ global _loader
 _loader:
         ;; Disable interrupts
         cli
-        xchg bx, bx
 
         ;; Load descriptors table
         lgdt [gdt32.ptr]
