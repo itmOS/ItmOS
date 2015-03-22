@@ -26,28 +26,28 @@ tty_clear:
 ;;; where background_color from 0 to 15
 ;;; and   foreground_color from 0 to 15
 tty_set_style:
-    push ebx
-    xor ebx, ebx
-    mov bl, byte [cur_text_style]
+	push ebx
+	xor ebx, ebx
+	mov bl, byte [cur_text_style]
 	mov byte [ebx + text_style], al
-    pop ebx
+	pop ebx
 	ret
 
 tty_save_style:
-    push eax
-    push ebx
-    xor ebx, ebx
-    mov bl, byte [cur_text_style]
-    mov al, byte [ebx + text_style]
-    inc byte [cur_text_style]
-    mov byte [ebx + text_style + 1], al
-    pop ebx
-    pop eax
-    ret
+	push eax
+	push ebx
+	xor ebx, ebx
+	mov bl, byte [cur_text_style]
+	mov al, byte [ebx + text_style]
+	inc byte [cur_text_style]
+	mov byte [ebx + text_style + 1], al
+	pop ebx
+	pop eax
+	ret
 
 tty_restore_style:
-    dec byte [cur_text_style]
-    ret
+	dec byte [cur_text_style]
+	ret
 
 ;;; Put string to the cursor position
 ;;; esi -- zero-ended string
@@ -76,20 +76,20 @@ tty_putc:
 	call tty_endl
 	ret
 	.put_char:
-    push ecx
+	push ecx
 	push ebx
 	push eax
 	mov ebx, video_start 
 	add ebx, [cursor_pos]
 	add ebx, [cursor_pos]
-    xor ecx, ecx
-    mov cl, byte [cur_text_style]
+	xor ecx, ecx
+	mov cl, byte [cur_text_style]
 	mov ah, byte [ecx + text_style]
 	mov [ebx], ax
 	inc word [cursor_pos]
 	pop eax
 	pop ebx
-    pop ecx
+	pop ecx
 	ret
 
 ;;; Change cursor position to the start of the next line.
@@ -118,9 +118,9 @@ video_memory_size_d: equ (screen_width * screen_height) / 2
 
 section .data
 text_style: 
-    db 0x07
-    times 63 db 0
+	db 0x07
+	times 63 db 0
 text_style_bottom:
 cur_text_style: db 0
 align 4
-    cursor_pos: dw 0
+	cursor_pos: dw 0
