@@ -24,3 +24,18 @@ if you prefer bochs, use:
 ```
 make EMUL=bochs run
 ```
+
+Custom make settings
+--------------------
+You can redefine almost all settings for the building and running process.
+For example if you want to select version of grub-mkrescue utility
+there are two ways to do this, first:
+```
+make GRUB_MKRESCUE=grub2-mkrescue all
+```
+or create file named "Makefile.local"
+and set the variable there:
+```
+GRUB_MKRESCUE = grub2-mkrescue
+```
+Above is true for many other variables, for example "EMUL", "SUBMODULES", "OUTPUT_DIR" etc.

@@ -1,3 +1,5 @@
+-include Makefile.local
+
 export AS = yasm
 export ASFLAGS = -f elf32 -I $(shell pwd)
 
@@ -8,19 +10,20 @@ export AR = ar
 export ARFLAGS = rcs
 
 # Use qemu by default
-EMUL := qemu
+EMUL ?= qemu
 
-BOCHS = bochs
-BOCHSFLAGS = -f res/bochsrc -q
+BOCHS ?= bochs
+BOCHSFLAGS ?= -f res/bochsrc -q
 
-QEMU = qemu-system-x86_64
-QEMUFLAGS = -m 1024
+QEMU ?= qemu-system-x86_64
+QEMUFLAGS ?= -m 1024
 
-ISO_ROOT = isoroot
-ISO = kernel.iso
-OUTPUT_DIR = $(ISO_ROOT)/boot
-KERNEL = $(OUTPUT_DIR)/ItmOS
-SUBMODULES = boot kernel tty
+GRUB_MKRESCUE ?= grub-mkrescue
+ISO_ROOT ?= isoroot
+ISO ?= kernel.iso
+OUTPUT_DIR ?= $(ISO_ROOT)/boot
+KERNEL ?= $(OUTPUT_DIR)/ItmOS
+SUBMODULES ?= boot kernel tty
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 
@@ -41,7 +44,7 @@ run_qemu: $(ISO)
 $(ISO): $(KERNEL)
 	-mkdir -p $(ISO_ROOT)/boot/grub
 	cp res/grub.cfg $(ISO_ROOT)/boot/grub
-	grub-mkrescue -o $@ $(ISO_ROOT)
+	$(GRUB_MKRESCUE) -o $@ $(ISO_ROOT)
 
 $(KERNEL): $(OBJ)
 	-mkdir -p $(OUTPUT_DIR)
