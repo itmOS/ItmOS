@@ -1,46 +1,84 @@
-; Declare constants used for creating a multiboot header.
-MBALIGN     equ  1<<0                   ; align loaded modules on page boundaries
-MEMINFO     equ  1<<1                   ; provide memory map
-FLAGS       equ  MBALIGN | MEMINFO      ; this is the Multiboot 'flag' field
-MAGIC       equ  0x1BADB002             ; 'magic number' lets bootloader find the header
-CHECKSUM    equ -(MAGIC + FLAGS)        ; checksum of above, to prove we are multiboot
- 
-section .multiboot
-align 4
-	dd MAGIC
-	dd FLAGS
-	dd CHECKSUM
- 
-; Currently the stack pointer register (esp) points at anything and using it may
-; cause massive harm. Instead, we'll provide our own stack. We will allocate
-; room for a small temporary stack by creating a symbol at the bottom of it,
-; then allocating 16384 bytes for it, and finally creating a symbol at the top.
-section .bootstrap_stack
-align 4
-stack_bottom:
-times 16384 db 0
-stack_top:
- 
-; The linker script specifies _start as the entry point to the kernel and the
-; bootloader will jump to this position once the kernel has been loaded. It
-; doesn't make sense to return from this function as the bootloader is gone.
 section .text
-global _start
-_start:
-	; To set up a stack, we simply set the esp register to point to the top of
-	; our stack (as it grows downwards).
-	mov esp, stack_top
 
-	; Call our kernel's main function
-	extern boot_start32
-	call boot_start32
- 
-	; In case the function returns, we'll want to put the computer into an
-	; infinite loop. To do that, we use the clear interrupt ('cli') instruction
-	; to disable interrupts, the halt instruction ('hlt') to stop the CPU until
-	; the next interrupt arrives, and jumping to the halt instruction if it ever
-	; continues execution, just to be safe.
-	cli
-.hang:
-	hlt
-	jmp .hang
+extern kernel_main
+
+;;; Multiboot constants http://nongnu.askapache.com/grub/phcoder/multiboot.pdf
+MODULEALIGN equ  1<<0
+MEMINFO     equ  1<<1
+FLAGS       equ  MODULEALIGN | MEMINFO
+MAGIC       equ    0x1BADB002
+CHECKSUM    equ -(MAGIC + FLAGS)
+
+;;; Present, Read/Write and user accessible
+;;; See http://wiki.osdev.org/Paging
+DEFAULT_ACCESS_MODE equ 0x7
+KERNEL_VMA          equ 0xC0000000 ; 3GB
+KERNEL_PAGE_NUMBER  equ (KERNEL_VMA >> 22) ; Page directory index of kernel's 4MB PTE.
+STACK_SIZE          equ 0x4000             ; 16k
+
+section .text
+
+align 4
+multiboot_header:
+        dd MAGIC
+        dd FLAGS
+        dd CHECKSUM
+
+global _loader
+_loader:
+        ;; Disable interrupts
+        cli
+        xchg bx, bx
+
+        ;; Load descriptors table
+        lgdt [gdt32.ptr]
+
+        ;; Set up page table
+        mov eax, (page_directory - KERNEL_VMA)
+        mov cr3, eax
+
+        ;; Set PSE bit in CR4 to enable 4MB pages.
+        mov ecx, cr4
+        or ecx, 0x00000010
+        mov cr4, ecx
+
+        ;; Turn on paging
+        mov eax, cr0
+        or eax, 0x80000000
+        mov cr0, eax
+
+        ;; Start fetching instructions in kernel space.
+        ;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
+        ;; we need to do a long jump to the correct virtual address of kernel_main which is
+        ;; approximately 0xC0100000.
+        jmp kernel_main         ; We must use absolute jump
+
+section .data
+;;; That seems to be only temporary page table, will be replaced in future
+;;; The first 3G of the memory will be controlled by user,
+;;; when the rest of space will be kernel's memory in every process.
+;;; Also we map the first 1M one-by-one, to continue correct execution of the loaded code after setting the page table.
+;;; We assume that kernel is loaded to the address 0x100000
+align 4096
+page_directory:
+        ;; This page directory entry identity-maps the first 4MB of the 32-bit physical address space.
+        ;; All bits are clear except the following:
+        ;; bit 7: PS The kernel page is 4MB.
+        ;; bit 1: RW The kernel page is read/write.
+        ;; bit 0: P  The kernel page is present.
+        ;; This entry must be here -- otherwise the kernel will crash immediately after paging is
+        ;; enabled because it can't fetch the next instruction! It's ok to unmap this page later.
+        dd 0x00000083
+        times (KERNEL_PAGE_NUMBER - 1) dd 0
+        dd 0x00000083
+        times (1024 - KERNEL_PAGE_NUMBER - 1) dd 0
+
+;;; GDT for the 32-bit kernel
+align 16
+gdt32:
+        dq 0                    ; NULL - 0
+        dq 0x00CF9A000000FFFF   ; CODE - 8
+        dq 0x00CF92000000FFFF   ; DATA - 16
+.ptr:
+        dw $ - gdt32 - 1
+        dd gdt32
