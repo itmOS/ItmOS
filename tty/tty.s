@@ -15,7 +15,7 @@ tty_clear:
 
 	mov edi, video_start
 	mov ecx, video_memory_size_d
-	mov eax, 0
+	xor eax, eax
 	repe stosd
 	pop ecx
 	pop edi
@@ -33,6 +33,9 @@ tty_set_style:
 	pop ebx
 	ret
 
+;;; Save the current terminal text style
+;;; (pushes it on the stack).
+;;; Can be restored later via tty_restore_style.
 tty_save_style:
 	push eax
 	push ebx
@@ -45,6 +48,8 @@ tty_save_style:
 	pop eax
 	ret
 
+;;; Restore the last saved terminal text style,
+;;; removes it from the stack.
 tty_restore_style:
 	dec byte [cur_text_style]
 	ret
@@ -68,6 +73,31 @@ tty_puts:
 	pop eax
 	ret
 
+check_for_overflow:
+	cmp word [cursor_pos], screen_size
+	jl .return
+	push esi
+	push edi
+	push eax
+	push ecx
+
+	mov edi, video_start
+	mov esi, video_start + screen_width * 2
+	mov ecx, screen_size - screen_width
+	repe movsw
+	mov edi, video_start + (screen_size - screen_width) * 2
+	xor ax, ax
+	mov ecx, screen_width
+	repe stosw
+	sub word [cursor_pos], screen_width
+
+	pop ecx
+	pop eax
+	pop edi
+	pop esi
+	.return:
+	ret
+
 ;;; Put char to the cursor position
 ;;; al -- character. Character with code 10 means line end.
 tty_putc:
@@ -79,14 +109,14 @@ tty_putc:
 	push ecx
 	push ebx
 	push eax
-	mov ebx, video_start 
-	add ebx, [cursor_pos]
-	add ebx, [cursor_pos]
+	mov ebx, [cursor_pos]
 	xor ecx, ecx
 	mov cl, byte [cur_text_style]
 	mov ah, byte [ecx + text_style]
-	mov [ebx], ax
+	mov [ebx + ebx + video_start], ax
 	inc word [cursor_pos]
+	call check_for_overflow
+
 	pop eax
 	pop ebx
 	pop ecx
@@ -98,12 +128,13 @@ tty_endl:
 	push edx
 	push ecx
 
-	mov dx, 0
+	xor dx, dx
 	mov ax, [cursor_pos]
 	mov cx, screen_width
 	div cx
 	sub [cursor_pos], dx
 	add word [cursor_pos], screen_width
+	call check_for_overflow
 
 	pop ecx
 	pop edx
@@ -114,7 +145,8 @@ tty_endl:
 video_start: equ 0xB8000
 screen_width: equ 80
 screen_height: equ 25
-video_memory_size_d: equ (screen_width * screen_height) / 2
+screen_size: equ screen_width * screen_height
+video_memory_size_d: equ screen_size / 2
 
 section .data
 text_style: 
