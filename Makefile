@@ -20,7 +20,7 @@ ISO_ROOT = isoroot
 ISO = kernel.iso
 OUTPUT_DIR = $(ISO_ROOT)/boot
 KERNEL = $(OUTPUT_DIR)/ItmOS
-SUBMODULES = boot kernel
+SUBMODULES = boot kernel tty
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 
@@ -41,7 +41,7 @@ run_qemu: $(ISO)
 $(ISO): $(KERNEL)
 	-mkdir -p $(ISO_ROOT)/boot/grub
 	cp res/grub.cfg $(ISO_ROOT)/boot/grub
-	grub2-mkrescue -o $@ $(ISO_ROOT)
+	grub-mkrescue -o $@ $(ISO_ROOT)
 
 $(KERNEL): $(OBJ)
 	-mkdir -p $(OUTPUT_DIR)
