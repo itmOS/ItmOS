@@ -32,8 +32,8 @@ _start:
 	mov esp, stack_top
 
 	; Call our kernel's main function
-	extern kernel_main
-	call kernel_main
+	extern boot_start32
+	call boot_start32
  
 	; In case the function returns, we'll want to put the computer into an
 	; infinite loop. To do that, we use the clear interrupt ('cli') instruction

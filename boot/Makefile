@@ -1,5 +1,5 @@
 OUTPUT = boot.a
-OBJ = boot.o
+OBJ = boot.o start32.o
 
 all: $(OUTPUT)
 
