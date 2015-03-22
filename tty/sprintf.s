@@ -274,7 +274,11 @@ ullformat:
         pop ebp
         ret
 
-global sprintf ; see the header
+;;; WARNING!!! The signature differs from one in stdio.
+;;; Variadic arguments are not passed themselves but
+;;; as a pointer to their array.
+;;; void sprintf(char *out, char const *format, void const *varargs)
+global sprintf
 sprintf:
         push ebp
         mov ebp, esp
