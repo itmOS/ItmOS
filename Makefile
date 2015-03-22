@@ -2,7 +2,7 @@ export AS = yasm
 export ASFLAGS = -f elf32 -I $(shell pwd)
 
 export LD = ld
-export LDFLAGS = -m elf_i386
+export LDFLAGS = -m elf_i386 -T res/linker.ld
 
 export AR = ar
 export ARFLAGS = rcs
