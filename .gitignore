@@ -1,4 +1,7 @@
+Makefile.local
+bochsrc.local
 *.o
 *.a
 isoroot
 *.iso
+*~
