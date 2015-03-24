@@ -180,4 +180,4 @@ text_style:
 text_style_bottom:
 cur_text_style: db 0
 align 4
-	cursor_pos: dw 0
+	cursor_pos: dd 0
