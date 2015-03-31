@@ -46,12 +46,11 @@ _loader:
         or eax, 0x80000000
         mov cr0, eax
 
-        ;; Start fetching instructions in kernel space.
+	;; Start fetching instructions in kernel space.
         ;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
         ;; we need to do a long jump to the correct virtual address of kernel_main which is
         ;; approximately 0xC0100000.
         mov ecx, kernel_main
-        xchg bx, bx
         jmp ecx         ; We must use absolute jump
 
 section .data

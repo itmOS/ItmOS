@@ -1,5 +1,7 @@
 section .text
 
+extern init_interrupts
+
 %include "tty/tty.inc"
 
 global kernel_main
@@ -13,8 +15,10 @@ kernel_main:
 	TTY_PUTC al
 	pop eax
 	TTY_PUTC al
+	call init_interrupts
+        xchg bx, bx
         TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), hello_world
-	hlt
+        xchg bx, bx
 	jmp $
 
 section .data
