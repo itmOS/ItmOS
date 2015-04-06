@@ -4,21 +4,23 @@
 extern ata_pio_inbyte
 extern ata_pio_outbyte
 
-%macro ATA_PIO_INBYTE 1
-	push ecx
-	mov cx, %1
+%macro ATA_PIO_INBYTE 2
+	push edi
+	mov es, %1
+	mov di, %2
 	call ata_pio_inbyte
-	pop ecx
+	pop edi
 %endmacro
 
-%macro ATA_PIO_OUTBYTE 2
-	push ecx
+%macro ATA_PIO_OUTBYTE 3
 	push eax
-	mov cx, %1
-	mov al, %2
+	push edi
+	mov es, %1
+	mov di, %2
+	mov al, %3
 	call ata_pio_outbyte
+	pop edi
 	pop eax
-	pop ecx
 %endmacro
 
 %endif

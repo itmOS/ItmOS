@@ -7,14 +7,14 @@ global ata_pio_outbyte
 section .text
 ;;; Reads byte from specified address. (Uses pio_base_addr as device)
 ;;; Input:
-;;;		cx -- drive-begin relative address
+;;;   es -- segment number
+;;;   di -- segment offset
 ;;; Output:
 ;;;		al -- result of reading from specified address
 ata_pio_inbyte:
 	push edx
 
 	mov dx, [pio_base_addr]
-	add dx, cx
 
 	in al, dx
 
@@ -23,8 +23,9 @@ ata_pio_inbyte:
 
 ;;; Writes byte to specified address. (Uses pio_base_addr as device)
 ;;; Input:
-;;;		cx -- drive-begin relative address
 ;;;		al -- byte to write
+;;;   es -- segment number
+;;;   di -- segment offset
 ata_pio_outbyte:
 	push edx
 

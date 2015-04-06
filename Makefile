@@ -10,7 +10,7 @@ export AR = ar
 export ARFLAGS = rcs
 
 # Use qemu by default
-EMUL ?= qemu
+EMUL ?= bochs
 
 BOCHS ?= bochs
 BOCHSFLAGS ?= -f res/bochsrc -q
@@ -19,28 +19,39 @@ QEMU ?= qemu-system-x86_64
 QEMUFLAGS ?= -m 1024
 
 GRUB_MKRESCUE ?= grub-mkrescue
-ISO_ROOT ?= isoroot
-ISO ?= kernel.iso
-OUTPUT_DIR ?= $(ISO_ROOT)/boot
+HARD_ROOT ?= hardroot
+HARD ?= kernel.img
+OUTPUT_DIR ?= $(HARD_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
 SUBMODULES ?= boot kernel tty ata
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 
-all: $(ISO)
+all: $(HARD)
 
 run: run_$(EMUL)
 
-run_bochs: $(ISO)
+run_bochs: $(HARD)
 	$(BOCHS) $(BOCHSFLAGS)
 
-run_qemu: $(ISO)
-	$(QEMU) $(QEMUFLAGS) -cdrom $(ISO)
+run_qemu: $(HARD)
+	$(QEMU) $(QEMUFLAGS) -hda $(HARD)
 
-$(ISO): $(KERNEL)
-	-mkdir -p $(ISO_ROOT)/boot/grub
-	cp res/grub.cfg $(ISO_ROOT)/boot/grub
-	$(GRUB_MKRESCUE) -o $@ $(ISO_ROOT)
+$(HARD): $(KERNEL)
+	dd if=/dev/zero of=$(HARD) count=40320
+	(echo -n "n\np\n1\n2048\n40319\na\n1\nw\n") | fdisk -C 40 -H 16 -S 63 $(HARD)
+	sudo losetup /dev/loop0 $(HARD)
+	sudo losetup /dev/loop1 $(HARD) -o 1048576
+	sudo mkfs.ext2 /dev/loop1
+	sudo mount /dev/loop1 /mnt
+	sudo grub-install --root-directory=/mnt --no-floppy --modules="normal part_msdos ext2 multiboot" /dev/loop0
+	sync
+	sudo cp res/grub.cfg /mnt/boot/grub
+	sudo cp $(KERNEL) /mnt/boot
+	sync
+	sudo losetup -d /dev/loop0
+	sudo losetup -d /dev/loop1
+	sudo umount /mnt
 
 $(KERNEL): $(OBJ)
 	-mkdir -p $(OUTPUT_DIR)
@@ -57,6 +68,6 @@ clean:
 		echo "Cleaning $$dir"; \
 		$(MAKE) --no-print-directory clean -C $$dir; \
 	done
-	rm -rf $(ISO) $(ISO_ROOT)
+	rm -rf $(HARD) $(HARD_ROOT)
 
 .PHONY: all clean $(ISO)
