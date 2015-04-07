@@ -55,7 +55,7 @@ keyboard_int:
         ;; Shows some symbol
 	mov ax, 'oo'
         in al, 0x60
-	mov [0xB8002], ax
+	mov [0xB8032], ax
         ret
 
 timer_int:
