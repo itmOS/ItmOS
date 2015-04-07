@@ -7,27 +7,46 @@ IRQ_BASE                equ	0x20
 
 %include "tty/tty.inc"
 
-;;; FIXME: Somehow this handler is called only once
-timer_int_handler:
+%macro putToPIC 1
+        mov al, %1
+        out 0x20, al
+        out 0xA0, al
+%endmacro
+
+%macro wrapHandler 2
         pusha
 
+        call %1
+        putToPIC %2
+
+        popa
+        iret
+%endmacro
+
+
+timer_int_handler:
+        wrapHandler timer_int, 0x20
+
+timer_int:
 	xchg bx, bx
+
 	;; Set some good color
 	mov ax, 'oo'
 	;; Load cool symbol
 	mov al, [timer_symbol]
 	;; Print it
 	mov [0xB8000], ax
+
 	;; Change this cool symbol for the next time
 	sub al, 'a'
 	xor al, 1
 	add al, 'a'
 	;; And save it
 	mov [timer_symbol], al
+        ret
 
-        popa
-        iret
-        
+
+
 init_timer_int_handler:
         pusha
 
