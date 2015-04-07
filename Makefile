@@ -23,7 +23,7 @@ HARD_ROOT ?= hardroot
 HARD ?= kernel.img
 OUTPUT_DIR ?= $(HARD_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
-SUBMODULES ?= boot kernel tty interrupts
+SUBMODULES ?= boot kernel tty ata interrupts
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 

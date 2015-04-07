@@ -10,13 +10,14 @@ global kernel_main
 ;;; Entry point of the kernel.
 kernel_main:
 	mov esp, stack_top
-	mov [memout], byte 's'
+	call init_interrupts
+	mov [memout + 0], byte 's'
 	mov [memout + 1], byte 'u'
 	mov [memout + 2], byte 'c'
 	mov [memout + 3], byte 'c'
 	mov [memout + 4], byte 'e'
 	mov [memout + 5], byte 's'
-	call init_interrupts
+	mov [memout + 6], byte 's'
 	mov [memout + 7], byte 10
 	mov [memout + 8], byte 0
 	mov [memout + 300], byte 'y'
