@@ -43,18 +43,21 @@ IRQ_BASE                equ	0x20
         popa
 %endmacro
 
-%macro enableIRQ 2
-        push eax
-        push ecx
-        push edx
-
-                pop edx
-        pop ecx
-        pop eax
-%endmacro
-
 timer_int_handler:
         wrapHandler timer_int
+
+
+keyboard_int_handler:
+        wrapHandler keyboard_int
+
+keyboard_int:
+	xchg bx, bx
+        ;; TODO process scan-code to ASCII-code
+        ;; Shows some symbol
+	mov ax, 'oo'
+        in al, 0x60
+	mov [0xB8002], ax
+        ret
 
 timer_int:
 	xchg bx, bx
@@ -103,14 +106,16 @@ init_interrupts:
         mov al, 0x01
         out 0xA1, al
         
-        ;; Disable all IRQ for PIC2, all except times for PIC1
-        mov al, ~0x01
+        ;; Disable all IRQ for PIC2, PIC1
+        ;; Enable keyboard, timer for PIC1
+        mov al, ~0x03
         out 0x21, al
         mov al, ~0x00
         out 0xA1, al
 
         ;; Set handler for timer interrupts
         initHandler timer_int_handler, IRQ_BASE, 0x8E00
+        initHandler keyboard_int_handler, IRQ_BASE + 1, 0x8E00
 
         ;; Enable interrupts
         sti
