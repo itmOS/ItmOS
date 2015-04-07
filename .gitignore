@@ -3,5 +3,7 @@ bochsrc.local
 *.o
 *.a
 isoroot
+hardroot
 *.iso
+*.img
 *~
