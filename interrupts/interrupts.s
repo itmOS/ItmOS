@@ -7,25 +7,54 @@ IRQ_BASE                equ	0x20
 
 %include "tty/tty.inc"
 
-%macro putToPIC 1
-        mov al, %1
+;;; Sends 0x20 to PICs ports
+%macro notifyPIC 0
+        mov al, 0x20
         out 0x20, al
         out 0xA0, al
 %endmacro
 
-%macro wrapHandler 2
+;;; Universal wrapper for handlers
+;;; Saves registers, calls handler, sends EIO
+%macro wrapHandler 1
         pusha
 
         call %1
-        putToPIC %2
+        ;; Send EIO(end of interrupt) to PIC
+        notifyPIC
 
         popa
         iret
 %endmacro
 
+;;; Fills IDT element of given interrupt(2) using given handler(1), types and attributes(3)
+%macro initHandler 3 
+        pusha
+        ;; Filling the IDT element
+        mov eax, %1                                     ; handler address
+        mov ecx, %2                                     ; interrupt index
+        
+        mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
+        mov word [interrupt_table + ecx * 8 + 2], 8     ; set code segment selector
+        mov word [interrupt_table + ecx * 8 + 4], %3    ; set type and attributes
+        shr eax, 16                                      
+        mov [interrupt_table + ecx * 8 + 6], ax         ; set handler address 16..31 bits
+
+        popa
+%endmacro
+
+%macro enableIRQ 2
+        push eax
+        push ecx
+        push edx
+
+                pop edx
+        pop ecx
+        pop eax
+%endmacro
 
 timer_int_handler:
-        wrapHandler timer_int, 0x20
+        wrapHandler timer_int
 
 timer_int:
 	xchg bx, bx
@@ -45,55 +74,45 @@ timer_int:
 	mov [timer_symbol], al
         ret
 
-
-
-init_timer_int_handler:
-        pusha
-
-        mov eax, timer_int_handler
-        mov [interrupt_table + IRQ_BASE * 8], ax
-        mov word [interrupt_table + IRQ_BASE * 8 + 2], 8
-        mov word [interrupt_table + IRQ_BASE * 8 + 4], 0x8E00
-        shr eax, 16
-        mov [interrupt_table + IRQ_BASE * 8 + 6], ax
-
-        popa
-        ret
-
 init_interrupts:
-        push eax
+        ;; Set IDT address 
 	lidt [interrupt_table.ptr]
-        
+
+;;; remap the PICs beyond 0x20
+;;; 0x20  because Intel have designated the first 32 interrupts as "reserved" for cpu exceptions
+        ;; Start initialising sequence
         mov al, 0x11
         out 0x20, al
         out 0xA0, al
-        
+
+        ;; Send to PIC1 new start of interrupts
         mov al, 0x20
         out 0x21, al
-
+        ;; Send to PIC2 new start of interrupts
         mov al, 0x28
         out 0xA1, al
-
+        ;; Set PIC1 as master
         mov al, 0x04
         out 0x21, al
-
+        ;; Set PIC2 as slave
         mov al, 0x02
         out 0xA1, al
-
+        ;; Set 8086 mode for PIC1 and PIC2
         mov al, 0x01
         out 0x21, al
-
         mov al, 0x01
         out 0xA1, al
-
-        mov al, 0x0
+        
+        ;; Disable all IRQ for PIC2, all except times for PIC1
+        mov al, ~0x01
         out 0x21, al
-
-        mov al, 0x0
+        mov al, ~0x00
         out 0xA1, al
 
-        call init_timer_int_handler
-        pop eax
+        ;; Set handler for timer interrupts
+        initHandler timer_int_handler, IRQ_BASE, 0x8E00
+
+        ;; Enable interrupts
         sti
 	ret
 
