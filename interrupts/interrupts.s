@@ -46,7 +46,6 @@ IRQ_BASE                equ	0x20
 timer_int_handler:
         wrapHandler timer_int
 
-
 keyboard_int_handler:
         wrapHandler keyboard_int
 
@@ -115,6 +114,7 @@ init_interrupts:
 
         ;; Set handler for timer interrupts
         initHandler timer_int_handler, IRQ_BASE, 0x8E00
+        ;; Set handler for keyboard interrupts
         initHandler keyboard_int_handler, IRQ_BASE + 1, 0x8E00
 
         ;; Enable interrupts
