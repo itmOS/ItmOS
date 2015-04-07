@@ -1,5 +1,7 @@
 section .text
 
+%include "boot/boot.inc"
+
 global tty_clear
 global tty_puts
 global tty_putc
@@ -167,7 +169,7 @@ tty_endl:
 	ret
 
 ;;; Address of the start of the video memory
-video_start: equ 0xB8000
+video_start: equ 0xB8000 ;; (KERNEL_VMA + 0xB8000)
 screen_width: equ 80
 screen_height: equ 25
 screen_size: equ screen_width * screen_height
@@ -179,5 +181,6 @@ text_style:
 	times 63 db 0
 text_style_bottom:
 cur_text_style: db 0
+
 align 4
-	cursor_pos: dd 0
+cursor_pos: dd 0
