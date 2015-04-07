@@ -54,6 +54,7 @@ section .text
 ;;; Input:
 ;;;   ebp -- absolute lba
 ;;;   edi -- result buffer
+;;;   bl  -- number of sectors to read
 ata_pio_inseg:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
 	push ebp
@@ -61,6 +62,7 @@ ata_pio_inseg:
 	TTY_PRINTF
 	pop ebp
 	pop ebp
+.read
 	xor eax, eax
 	mov ecx, ebp
 	mov al, 1    ; number of sectors to read
@@ -113,11 +115,18 @@ ata_pio_inseg:
 	push eax
 	push ata_pio_read_log
 	TTY_PRINTF
-	pop ecx
+	pop eax
 	pop eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
-	je .success
+	jne .failed
+
+	inc ebp
+	dec ebx
+	test bl, bl
+	jne .read
+
+	jmp .success
 .failed
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_fail_log
 	stc
@@ -128,6 +137,7 @@ ata_pio_inseg:
 ;;; Input:
 ;;;		esi  -- buffer to write
 ;;;   ebp  -- absolute lba
+;;;   bl   -- number of sectors to write
 ata_pio_outseg:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
 	push ebp
@@ -135,6 +145,7 @@ ata_pio_outseg:
 	TTY_PRINTF
 	pop ebp
 	pop ebp
+.write
 	xor eax, eax
 	mov ecx, ebp
 	mov al, 1    ; number of sectors to read
@@ -193,11 +204,18 @@ ata_pio_outseg:
 	push eax
 	push ata_pio_write_log
 	TTY_PRINTF
-	pop ebx
+	pop eax
 	pop eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
-	je .success
+	jne .failed
+
+	inc ebp
+	dec ebx
+	test bl, bl
+	jne .write
+
+	jmp .success
 .failed
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_fail_log
 	stc
