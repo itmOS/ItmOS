@@ -15,12 +15,12 @@ IRQ_BASE                equ	0x20
 %endmacro
 
 ;;; Universal wrapper for handlers
-;;; Saves registers, calls handler, sends EIO
+;;; Saves registers, calls handler, sends EOI
 %macro wrapHandler 1
         pusha
 
         call %1
-        ;; Send EIO(end of interrupt) to PIC
+        ;; Send EOI(end of interrupt) to PIC
         notifyPIC
 
         popa
