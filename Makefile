@@ -16,11 +16,11 @@ BOCHS ?= bochs
 BOCHSFLAGS ?= -f res/bochsrc -q
 
 QEMU ?= qemu-system-x86_64
-QEMUFLAGS ?= -m 1024
+QEMUFLAGS ?= -m 1024 -boot d
 
 GRUB_MKRESCUE ?= grub-mkrescue
 HARD_ROOT ?= hardroot
-HARD ?= kernel.img
+HARD ?= disk.img
 ISO_ROOT ?= isoroot
 ISO ?= kernel.iso
 OUTPUT_DIR ?= $(ISO_ROOT)/boot
@@ -37,7 +37,7 @@ run_bochs: $(ISO) $(HARD)
 	$(BOCHS) $(BOCHSFLAGS)
 
 run_qemu: $(ISO) $(HARD)
-	$(QEMU) $(QEMUFLAGS) -cdrom $(ISO)
+	$(QEMU) $(QEMUFLAGS) -cdrom $(ISO) -hda $(HARD)
 
 $(ISO): $(KERNEL)
 		-mkdir -p $(ISO_ROOT)/boot/grub
