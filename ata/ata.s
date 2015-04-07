@@ -1,29 +1,60 @@
-global ata_pio_inbyte
-global ata_pio_outbyte
+global ata_pio_inseg
+global ata_pio_outseg
 
 %include "tty/tty.inc"
 
-;;; Shitty implementation of ATA driver. All errors (CRC and other) are ignored
-;;; at this moment.
+;;; Shitty implementation of ATA driver. Errors are handled, but nothing can be
+;;; done with them at this moment.
+
+;;; Primary bus I/O port. Other ports are specified as
+;;; offset from this one.
+%define ATA_PIO_BASE_ADDR 0x1f0
+
+
+;;; Status reg's bits
+%define ATA_ST_ERR 0x01 ;; Indicates an error occurred. Send a new command
+                        ;; to clear it (or nuke it with a Software Reset).
+
+												;; Bits 1 and 2 are something unimportant
+
+%define ATA_ST_DRQ 0x08 ;; Set when the drive has PIO data to transfer, or is
+                        ;; ready to accept PIO data
+%define ATA_ST_SRV 0x10 ;; Overlapped Mode Service Request
+%define ATA_ST_DF  0x20 ;; Drive Fault Error (does not set ERR)
+%define ATA_ST_RDY 0x40 ;; Bit is clear when drive is spun down, or after an
+                        ;; error. Set otherwise.
+%define ATA_ST_BSY 0x80 ;; Indicates the drive is preparing to send/receive data
+                        ;; (wait for it to clear). In case of 'hang' (it never clears), do a software
+                        ;; reset.
+
+;;; HD IDs
+%define ATA_LBA28_MASTER 0xE0
+
+;;; HD commands
+%define ATA_CMD_READ         0x20
+%define ATA_CMD_WRITE        0x30
+%define ATA_CMD_FLUSH_CACHE  0xE7
+
 
 section .text
 ;;; Reads byte from specified address. (Uses pio_base_addr as device)
 ;;; Input:
 ;;;   ebp -- absolute lba
-;;; Output:
-;;;		al  -- result of reading from specified address
-ata_pio_inbyte:
+;;;   edi -- result buffer
+ata_pio_inseg:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
+	push edi
 	push ebp
 	push ata_pio_inbyte_log
 	TTY_PRINTF
 	pop ebp
 	pop ebp
+	pop edi
 	xor eax, eax
 	mov ecx, ebp
 	mov al, 1    ; number of sectors to read
 
-	mov dx, [pio_base_addr]
+	mov dx, ATA_PIO_BASE_ADDR
 	or dl, 2     ; sector number port (0x1f2)
 	out dx, al
 
@@ -43,22 +74,22 @@ ata_pio_inbyte:
 
 	mov al, cl   ; bits 24..32
 	and al, 0x0F ; leave only lowest 4 bits (24..28)
-	or al, 0xE0  ; 0xE0 for lba28
+	or al, ATA_LBA28_MASTER
 	inc edx      ; bits 24..28
 	             ; probably master\slave flag to check
 	out dx, al
 
 	inc edx      ; command/status port 0x1f7
-	mov al, 0x20 ; send "read" command
+	mov al, ATA_CMD_READ ; send "read" command
 	out dx, al
 
 	mov ecx, 4
 .wait
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_waiting_log
 	in al, dx     ; read status byte
-	test al, 0x80 ; test for BSY flag
+	test al, ATA_ST_BSY ; test for BSY flag
 	jne .wait_more
-	test al, 8    ; test for DRQ flag
+	test al, ATA_ST_DRQ   ; test for DRQ flag
 	jne .ready
 .wait_more
   dec ecx
@@ -67,9 +98,9 @@ ata_pio_inbyte:
 .wait_some_more
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_wait_some_more_log
 	in al, dx     ; read status byte
-	test al, 0x80 ; test for BSY flag
+	test al, ATA_ST_BSY ; test for BSY flag
 	jne .wait_some_more
-	test al, 0x21 ; test for ERR flag
+	test al, ATA_ST_DF | ATA_ST_ERR ; test for ERR flag
 	jne .failed
 
 .ready
@@ -77,12 +108,6 @@ ata_pio_inbyte:
 	sub dl, 7     ; return to 0x1f0
 
 	mov ecx, 256
-	mov edi, ata_buf
-	xor ax, ax
-	rep stosw
-
-	mov ecx, 5
-	mov edi, ata_buf
 	cld
 	rep insw
 	or dl, 7
@@ -97,31 +122,32 @@ ata_pio_inbyte:
 	pop ecx
 	pop eax
 
-	test al, 0x21
+	test al, ATA_ST_DF | ATA_ST_ERR
 	je .success
 .failed
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_fail_log
 	stc
 .success
-	mov al, [ata_buf]
 	ret
 
 ;;; Writes byte to specified address. (Uses pio_base_addr as device)
 ;;; Input:
-;;;		bl  -- byte to write
-;;;   ebp -- absolute lba
-ata_pio_outbyte:
+;;;		esi  -- buffer to write
+;;;   ebp  -- absolute lba
+ata_pio_outseg:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
+	push esi
 	push ebp
 	push ata_pio_outbyte_log
 	TTY_PRINTF
 	pop ebp
 	pop ebp
+	pop esi
 	xor eax, eax
 	mov ecx, ebp
 	mov al, 1    ; number of sectors to read
 
-	mov dx, [pio_base_addr]
+	mov dx, ATA_PIO_BASE_ADDR
 	or dl, 2     ; sector number port (0x1f2)
 	out dx, al
 
@@ -141,22 +167,22 @@ ata_pio_outbyte:
 
 	mov al, cl   ; bits 24..32
 	and al, 0x0F ; leave only lowest 4 bits (24..28)
-	or al, 0xE0  ; 0xE0 for LBA28
+	or al, ATA_LBA28_MASTER  ; 0xE0 for LBA28
 	inc edx      ; bits 24..28
 	             ; probably master\slave flag to check
 	out dx, al
 
 	inc edx      ; command/status port 0x1f7
-	mov al, 0x30 ; send "write" command
+	mov al, ATA_CMD_WRITE ; send "write" command
 	out dx, al
 
 	mov ecx, 4
 .wait
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_waiting_log
 	in al, dx     ; read status byte
-	test al, 0x80 ; test for BSY flag
+	test al, ATA_ST_BSY ; test for BSY flag
 	jne .wait_more
-	test al, 8    ; test for DRQ flag
+	test al, ATA_ST_DRQ    ; test for DRQ flag
 	jne .ready
 .wait_more
   dec ecx
@@ -165,9 +191,9 @@ ata_pio_outbyte:
 .wait_some_more
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_wait_some_more_log
 	in al, dx     ; read status byte
-	test al, 0x80 ; test for BSY flag
+	test al, ATA_ST_BSY ; test for BSY flag
 	jne .wait_some_more
-	test al, 0x21 ; test for ERR flag
+	test al, ATA_ST_DF | ATA_ST_ERR ; test for ERR flag
 	jne .failed
 
 .ready
@@ -175,25 +201,13 @@ ata_pio_outbyte:
 	sub dl, 7     ; return to 0x1f0
 
 	mov cx, 256
-	mov edi, ata_buf
-	xor ax, ax
-	rep stosw
-
-	mov cx, 5
-	mov esi, ata_buf
-	rol ebx, 16
-	xor bx, bx
-	rol ebx, 16
-	mov [esi], ebx
 	cld
-	mov cx, 256
-.loop2
+.loop
 	outsw
-	xor eax, eax
-	loop .loop2
-
-	mov dx, 0x1f7
-	mov al, 0xE7
+	xor eax, eax ; small delay (we don't want to output too fast)
+	loop .loop
+	or dl, 7
+	mov al, ATA_CMD_FLUSH_CACHE
 	out dx, al
 
 	in al, dx     ; godlike ATA interface
@@ -207,44 +221,26 @@ ata_pio_outbyte:
 	pop ebx
 	pop eax
 
-	test al, 0x21
+	test al, ATA_ST_DF | ATA_ST_ERR
 	je .success
 .failed
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_fail_log
 	stc
 .success
-	mov al, [ata_buf]
 	ret
 
 section .data
-;;; Primary bus I/O port. Other ports are specified as
-;;; offset from this one.
-pio_base_addr: dw 0x1f0
-;;; 9 I/O ports, which control ATA bus behaviour.
-;;; For the primary bus, these I/O ports are 0x1F0
-;;; through 0x1F9.
-cb_data:  db 0 ;;; data reg      in/out
-cb_err:	  db 1 ;;; error         in
-cb_fr:    db 1 ;;; feature reg      out
-cb_sc:    db 2 ;;; sector count  in/out
-cb_sn:    db 3 ;;; sector number in/out
-cb_cl:    db 4 ;;; cylinder low  in/out
-cb_ch:    db 5 ;;; cylinder high in/out
-cb_dh:    db 6 ;;; device head   in/out
-cb_stat:  db 7 ;;; prim status   in
-cb_cmd:   db 7 ;;; command          out
-cb_astat: db 8 ;;; alt status    in
-cb_dc:    db 8 ;;; device ctrl      out
-cb_da:    db 9 ;;; device addr   in
 
+;;; Log string
 ata_pio_inbyte_log:         db 'ATA_PIO: Inbyte LBA: %u', 10, 0
-ata_pio_ready_log:          db 'ATA_PIO: Ready', 10, 0
-ata_pio_fail_log:           db 'ATA_PIO: Fail', 10, 0
-ata_pio_waiting_log:        db 'ATA_PIO: Waiting...', 10, 0
-ata_pio_wait_some_more_log: db 'ATA_PIO: Wait some more', 10, 0
 ata_pio_read_log:           db 'ATA_PIO: Read status code %u', 10, 0
 
 ata_pio_outbyte_log:        db 'ATA_PIO: Outbyte LBA: %u', 10, 0
 ata_pio_write_log:          db 'ATA_PIO: Write status code %u', 10, 0
 
-ata_buf: times 300 dw 0
+ata_pio_ready_log:          db 'ATA_PIO: Ready', 10, 0
+ata_pio_fail_log:           db 'ATA_PIO: Fail', 10, 0
+ata_pio_waiting_log:        db 'ATA_PIO: Waiting...', 10, 0
+ata_pio_wait_some_more_log: db 'ATA_PIO: Wait some more', 10, 0
+
+ata_pio_debug:              db 'ATA_PIO_DEBUG: %u', 10, 0
