@@ -81,8 +81,9 @@ init_interrupts:
         ;; Set IDT address 
 	lidt [interrupt_table.ptr]
 
-;;; remap the PICs beyond 0x20
-;;; 0x20  because Intel have designated the first 32 interrupts as "reserved" for cpu exceptions
+        ;; remap the PICs beyond 0x20
+        ;; 0x20  because Intel have designated the first 32 interrupts as "reserved" for cpu exceptions
+        
         ;; Start initialising sequence
         mov al, 0x11
         out 0x20, al
