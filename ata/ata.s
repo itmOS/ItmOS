@@ -10,12 +10,21 @@ global ata_pio_outseg
 ;;; offset from this one.
 %define ATA_PIO_BASE_ADDR 0x1f0
 
+%define ATA_PIO_PORT_DATA        0
+%define ATA_PIO_PORT_ERROR       1
+%define ATA_PIO_PORT_SECT_COUNT  2
+%define ATA_PIO_PORT_SECT_NUM    3
+%define ATA_PIO_PORT_CYL_LOW     4
+%define ATA_PIO_PORT_CYL_HIGH    5
+%define ATA_PIO_PORT_DRV_HEAD    6
+%define ATA_PIO_PORT_STATUS      7
+%define ATA_PIO_PORT_COMMAND     7
 
 ;;; Status reg's bits
 %define ATA_ST_ERR 0x01 ;; Indicates an error occurred. Send a new command
                         ;; to clear it (or nuke it with a Software Reset).
 
-												;; Bits 1 and 2 are something unimportant
+                        ;; Bits 1 and 2 are something unimportant
 
 %define ATA_ST_DRQ 0x08 ;; Set when the drive has PIO data to transfer, or is
                         ;; ready to accept PIO data
@@ -35,6 +44,10 @@ global ata_pio_outseg
 %define ATA_CMD_WRITE        0x30
 %define ATA_CMD_FLUSH_CACHE  0xE7
 
+;;; Return codes
+%define ATA_OK  0
+%define ATA_BAD 1
+
 
 section .text
 ;;; Reads byte from specified address. (Uses pio_base_addr as device)
@@ -43,13 +56,11 @@ section .text
 ;;;   edi -- result buffer
 ata_pio_inseg:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
-	push edi
 	push ebp
 	push ata_pio_inbyte_log
 	TTY_PRINTF
 	pop ebp
 	pop ebp
-	pop edi
 	xor eax, eax
 	mov ecx, ebp
 	mov al, 1    ; number of sectors to read
@@ -76,34 +87,17 @@ ata_pio_inseg:
 	and al, 0x0F ; leave only lowest 4 bits (24..28)
 	or al, ATA_LBA28_MASTER
 	inc edx      ; bits 24..28
-	             ; probably master\slave flag to check
+	             ; TODO: probably master\slave flag to check
 	out dx, al
 
 	inc edx      ; command/status port 0x1f7
 	mov al, ATA_CMD_READ ; send "read" command
 	out dx, al
 
-	mov ecx, 4
-.wait
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_waiting_log
-	in al, dx     ; read status byte
-	test al, ATA_ST_BSY ; test for BSY flag
-	jne .wait_more
-	test al, ATA_ST_DRQ   ; test for DRQ flag
-	jne .ready
-.wait_more
-  dec ecx
-  jg .wait
-
-.wait_some_more
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_wait_some_more_log
-	in al, dx     ; read status byte
-	test al, ATA_ST_BSY ; test for BSY flag
-	jne .wait_some_more
-	test al, ATA_ST_DF | ATA_ST_ERR ; test for ERR flag
+	call ata_poll
+	cmp al, ATA_OK
 	jne .failed
 
-.ready
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_ready_log
 	sub dl, 7     ; return to 0x1f0
 
@@ -136,13 +130,11 @@ ata_pio_inseg:
 ;;;   ebp  -- absolute lba
 ata_pio_outseg:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
-	push esi
 	push ebp
 	push ata_pio_outbyte_log
 	TTY_PRINTF
 	pop ebp
 	pop ebp
-	pop esi
 	xor eax, eax
 	mov ecx, ebp
 	mov al, 1    ; number of sectors to read
@@ -169,38 +161,21 @@ ata_pio_outseg:
 	and al, 0x0F ; leave only lowest 4 bits (24..28)
 	or al, ATA_LBA28_MASTER  ; 0xE0 for LBA28
 	inc edx      ; bits 24..28
-	             ; probably master\slave flag to check
+	             ; TODO: probably master\slave flag to check
 	out dx, al
 
 	inc edx      ; command/status port 0x1f7
 	mov al, ATA_CMD_WRITE ; send "write" command
 	out dx, al
 
-	mov ecx, 4
-.wait
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_waiting_log
-	in al, dx     ; read status byte
-	test al, ATA_ST_BSY ; test for BSY flag
-	jne .wait_more
-	test al, ATA_ST_DRQ    ; test for DRQ flag
-	jne .ready
-.wait_more
-  dec ecx
-  jg .wait
-
-.wait_some_more
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_wait_some_more_log
-	in al, dx     ; read status byte
-	test al, ATA_ST_BSY ; test for BSY flag
-	jne .wait_some_more
-	test al, ATA_ST_DF | ATA_ST_ERR ; test for ERR flag
+	call ata_poll
+	cmp al, ATA_OK
 	jne .failed
 
-.ready
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_ready_log
 	sub dl, 7     ; return to 0x1f0
 
-	mov cx, 256
+	mov ecx, 256
 	cld
 .loop
 	outsw
@@ -229,6 +204,45 @@ ata_pio_outseg:
 .success
 	ret
 
+;;; Waits until drive is ready before transfering data as
+;;; specified in documentation
+ata_poll:
+	push edx
+	push ecx
+	xor eax, eax
+	mov dx, ATA_PIO_BASE_ADDR
+	add dx, ATA_PIO_PORT_STATUS
+	mov ecx, 4            ; we need to repeat this at most 4 times
+.wait
+	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_polling_log
+	in al, dx              ; read status byte
+	test al, ATA_ST_BSY    ; wait until BSY flag is cleared
+	jne .wait_more
+	test al, ATA_ST_DRQ    ; test if DRQ flag is set
+	jne .okay
+.wait_more
+	loop .wait
+
+.wait_some_more
+	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_polling_log
+	in al, dx                       ; read status byte
+	test al, ATA_ST_BSY             ; wait until BSY flag is cleared
+	jne .wait_some_more
+	test al, ATA_ST_DF | ATA_ST_ERR ;; test for ERR and DF flags
+	                                ;; Specification says, that ERR and DF
+	                                ;; together or DRQ must be cleared
+	jne .failed
+	jmp .okay
+.failed
+	mov al, ATA_BAD
+	jmp .return
+.okay
+	mov al, ATA_OK
+.return
+	pop ecx
+	pop edx
+	ret
+
 section .data
 
 ;;; Log string
@@ -240,7 +254,7 @@ ata_pio_write_log:          db 'ATA_PIO: Write status code %u', 10, 0
 
 ata_pio_ready_log:          db 'ATA_PIO: Ready', 10, 0
 ata_pio_fail_log:           db 'ATA_PIO: Fail', 10, 0
-ata_pio_waiting_log:        db 'ATA_PIO: Waiting...', 10, 0
-ata_pio_wait_some_more_log: db 'ATA_PIO: Wait some more', 10, 0
+
+ata_pio_polling_log:        db 'ATA_PIO: Polling...', 10, 0
 
 ata_pio_debug:              db 'ATA_PIO_DEBUG: %u', 10, 0
