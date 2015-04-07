@@ -7,13 +7,28 @@ IRQ_BASE                equ	0x20
 
 %include "tty/tty.inc"
 
+;;; FIXME: Somehow this handler is called only once
 timer_int_handler:
         pusha
+
+	xchg bx, bx
+	;; Set some good color
+	mov ax, 'oo'
+	;; Load cool symbol
+	mov al, [timer_symbol]
+	;; Print it
+	mov [0xB8000], ax
+	;; Change this cool symbol for the next time
+	sub al, 'a'
+	xor al, 1
+	add al, 'a'
+	;; And save it
+	mov [timer_symbol], al
+
         popa
         iret
         
 init_timer_int_handler:
-        xchg bx, bx
         pusha
 
         mov eax, timer_int_handler
@@ -28,10 +43,7 @@ init_timer_int_handler:
 
 init_interrupts:
         push eax
-        xchg bx, bx
 	lidt [interrupt_table.ptr]
-
-
         
         mov al, 0x11
         out 0x20, al
@@ -66,9 +78,11 @@ init_interrupts:
         sti
 	ret
 
-;;; section .data
+section .data
 interrupt_table:
 	times INTERRUPTS_TABLE_SIZE dd 0
 .ptr:
         dw INTERRUPTS_TABLE_SIZE
         dd interrupt_table
+
+timer_symbol:	db 'a'

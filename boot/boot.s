@@ -1,5 +1,7 @@
 section .text
 
+%include "boot/boot.inc"
+
 extern kernel_main
 
 ;;; Multiboot constants http://nongnu.askapache.com/grub/phcoder/multiboot.pdf
@@ -12,7 +14,6 @@ CHECKSUM    equ -(MAGIC + FLAGS)
 ;;; Present, Read/Write and user accessible
 ;;; See http://wiki.osdev.org/Paging
 DEFAULT_ACCESS_MODE equ 0x7
-KERNEL_VMA          equ 0xC0000000 ; 3GB
 KERNEL_PAGE_NUMBER  equ (KERNEL_VMA >> 22) ; Page directory index of kernel's 4MB PTE.
 STACK_SIZE          equ 0x4000             ; 16k
 
@@ -30,7 +31,15 @@ _loader:
         cli
 
         ;; Load descriptors table
-        lgdt [gdt32.ptr]
+        lgdt [gdt32.ptr - KERNEL_VMA]
+
+	mov ax, 16
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	;; FIXME: Next line fails WTF?
+	;; mov ss, ax
 
         ;; Set up page table
         mov eax, (page_directory - KERNEL_VMA)
@@ -50,8 +59,7 @@ _loader:
         ;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
         ;; we need to do a long jump to the correct virtual address of kernel_main which is
         ;; approximately 0xC0100000.
-        mov ecx, kernel_main
-        jmp ecx         ; We must use absolute jump
+	jmp 8:kernel_main
 
 section .data
 ;;; That seems to be only temporary page table, will be replaced in future
@@ -81,4 +89,4 @@ gdt32:
         dq 0x00CF92000000FFFF   ; DATA - 16
 .ptr:
         dw $ - gdt32 - 1
-        dd gdt32
+        dd (gdt32 - KERNEL_VMA)

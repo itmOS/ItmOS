@@ -16,9 +16,7 @@ kernel_main:
 	pop eax
 	TTY_PUTC al
 	call init_interrupts
-        xchg bx, bx
         TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), hello_world
-        xchg bx, bx
 	jmp $
 
 section .data
