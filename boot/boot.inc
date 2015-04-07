@@ -1,0 +1,1 @@
+KERNEL_VMA          equ 0xC0000000 ; 3GB
