@@ -77,6 +77,7 @@ timer_int:
         ret
 
 init_interrupts:
+        push eax
         ;; Set IDT address 
 	lidt [interrupt_table.ptr]
 
@@ -117,6 +118,7 @@ init_interrupts:
         ;; Set handler for keyboard interrupts
         initHandler keyboard_int_handler, IRQ_BASE + 1, 0x8E00
 
+        pop eax
         ;; Enable interrupts
         sti
 	ret
