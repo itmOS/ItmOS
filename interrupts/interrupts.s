@@ -8,7 +8,7 @@ IRQ_BASE                equ	0x20
 %include "tty/tty.inc"
 
 ;;; Sends 0x20 to PICs ports
-%macro notifyPIC 0
+%macro NOTIFYPIC 0
         mov al, 0x20
         out 0x20, al
         out 0xA0, al
@@ -16,19 +16,19 @@ IRQ_BASE                equ	0x20
 
 ;;; Universal wrapper for handlers
 ;;; Saves registers, calls handler, sends EOI
-%macro wrapHandler 1
+%macro WRAPHANDLER 1
         pusha
 
         call %1
         ;; Send EOI(end of interrupt) to PIC
-        notifyPIC
+        NOTIFYPIC
 
         popa
         iret
 %endmacro
 
 ;;; Fills IDT element of given interrupt(2) using given handler(1), types and attributes(3)
-%macro initHandler 3 
+%macro INITHANDLER 3 
         pusha
         ;; Filling the IDT element
         mov eax, %1                                     ; handler address
@@ -44,10 +44,10 @@ IRQ_BASE                equ	0x20
 %endmacro
 
 timer_int_handler:
-        wrapHandler timer_int
+        WRAPHANDLER timer_int
 
 keyboard_int_handler:
-        wrapHandler keyboard_int
+        WRAPHANDLER keyboard_int
 
 keyboard_int:
 	xchg bx, bx
@@ -114,9 +114,9 @@ init_interrupts:
         out 0xA1, al
 
         ;; Set handler for timer interrupts
-        initHandler timer_int_handler, IRQ_BASE, 0x8E00
+        INITHANDLER timer_int_handler, IRQ_BASE, 0x8E00
         ;; Set handler for keyboard interrupts
-        initHandler keyboard_int_handler, IRQ_BASE + 1, 0x8E00
+        INITHANDLER keyboard_int_handler, IRQ_BASE + 1, 0x8E00
 
         pop eax
         ;; Enable interrupts
