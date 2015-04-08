@@ -77,16 +77,17 @@
 ** PROGRESS Драйвер для работы с клавиатурой
    :with: Marianna Bisyarina
 ** TODO Драйвер для работы с жестким диском
-*** TODO Определение типа жёсткого (IDENTIFY)
-		Это вообще говоря musthave. Сейчас драйвер предполагает, что диск в ata0-master и что он работает через ATA-PIO
+*** PROGRESS Определение типа жёсткого (IDENTIFY)
+		:with: Itegulov Daniyar
+		Добавил простенький IDENTIFY, который умеет определять NOT_EXISTS, NON_ATA и SOME_ATA
 *** TODO Драйвер AHCI для работы с SATA
 *** TODO Драйвер SATAPI для работы с CD-ROM (это наверное далеко не самый обязательный пункт)
 *** PROGRESS Драйвер ATA-PIO
 **** TODO CHS
 		 Вещь сомнительной свежести. Но возможно кто-то захочет разобраться
-**** PROGRESS 28-bit LBA
-		 Реализован segment-by-segment reading\writing
-		:with: Itegulov Daniyar
+**** DONE 28-bit LBA
+		 :with: Itegulov Daniyar
+		 Реализован multisegment reading\writing
 **** TODO 48-bit LBA
 		 Возможно стоит запилить поддержку и этой штуки. Она является текущим стандартом
 *** TODO Поддержка многозадачности
