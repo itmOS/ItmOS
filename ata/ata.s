@@ -3,6 +3,7 @@ global ata_pio_outseg
 global ata_identify
 
 %include "tty/tty.inc"
+%include "aux/log/log.inc"
 
 ;;; Shitty implementation of ATA driver. Errors are handled, but nothing can be
 ;;; done with them at this moment.
@@ -88,17 +89,16 @@ ata_identify:
 	in al, dx
 	cmp al, 0
 	jnz .check_drive
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_no_drive_log
+	LOG_ERR ata_pio_no_drive_log
 	mov al, ATA_NO_DRIVE
 	jmp .return
 .check_drive
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_yes_drive_log
+	LOG_OK ata_pio_yes_drive_log
 
 	mov dx, ATA_PIO_BASE_ADDR
 	add dx, ATA_PIO_PORT_STATUS
 	mov ecx, 4            ; we need to repeat this at most 4 times
 .wait
-	;TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_polling_log
 	in al, dx              ; read status byte
 	test al, ATA_ST_BSY    ; wait until BSY flag is cleared
 	je .cleared
@@ -113,11 +113,18 @@ ata_identify:
 	in al, dx
 	cmp al, 0
 	jne .not_ata
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_ata_drive_log
+	LOG_OK ata_pio_ata_drive_log
+	;mov dx, ATA_PIO_BASE_ADDR
+	;add dx, ATA_PIO_PORT_STATUS
+;.poll
+	;in al, dx
+	;test al, ATA_ST_BSY
+	;je .poll
+	;test al, ATA_ST_DRQ
 
 	jmp .return
 .not_ata
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_not_ata_drive_log
+	LOG_ERR ata_pio_not_ata_drive_log
 	mov al, ATA_NOT_ATA
 .return
 	ret
@@ -196,7 +203,7 @@ ata_pio_inseg:
 	cmp al, ATA_OK
 	jne .failed
 
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_ready_log
+	LOG_OK ata_pio_ready_log
 	sub dl, 7     ; return to 0x1f0
 
 	mov ecx, 256
@@ -224,7 +231,7 @@ ata_pio_inseg:
 
 	jmp .success
 .failed
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_fail_log
+	LOG_ERR ata_pio_fail_log
 	stc
 .success
 	ret
@@ -279,7 +286,7 @@ ata_pio_outseg:
 	cmp al, ATA_OK
 	jne .failed
 
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_ready_log
+	LOG_OK ata_pio_ready_log
 	sub dl, 7     ; return to 0x1f0
 
 	mov ecx, 256
@@ -313,7 +320,7 @@ ata_pio_outseg:
 
 	jmp .success
 .failed
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_fail_log
+	LOG_ERR ata_pio_fail_log
 	stc
 .success
 	ret
@@ -328,7 +335,7 @@ ata_poll:
 	add dx, ATA_PIO_PORT_STATUS
 	mov ecx, 4            ; we need to repeat this at most 4 times
 .wait
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_polling_log
+	LOG_OK ata_pio_polling_log
 	in al, dx              ; read status byte
 	test al, ATA_ST_BSY    ; wait until BSY flag is cleared
 	jne .wait_more
@@ -338,7 +345,7 @@ ata_poll:
 	loop .wait
 
 .wait_some_more
-	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_polling_log
+	LOG_WARN ata_pio_polling_log
 	in al, dx                       ; read status byte
 	test al, ATA_ST_BSY             ; wait until BSY flag is cleared
 	jne .wait_some_more
