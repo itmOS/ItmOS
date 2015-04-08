@@ -18,6 +18,7 @@ BOCHSFLAGS ?= -f res/bochsrc -q
 QEMU ?= qemu-system-x86_64
 QEMUFLAGS ?= -m 1024 -boot d
 
+FDISK ?= fdisk
 GRUB_MKRESCUE ?= grub-mkrescue
 HARD_ROOT ?= hardroot
 HARD ?= disk.img
@@ -46,7 +47,7 @@ $(ISO): $(KERNEL)
 
 $(HARD): $(KERNEL)
 	dd if=/dev/zero of=$(HARD) count=40320
-	(echo -n "n\np\n1\n2048\n40319\na\n1\nw\n") | fdisk -C 40 -H 16 -S 63 $(HARD)
+	(echo -n "n\np\n1\n2048\n40319\na\n1\nw\n") | $(FDISK) -C 40 -H 16 -S 63 $(HARD)
 
 $(KERNEL): $(OBJ)
 	-mkdir -p $(OUTPUT_DIR)
