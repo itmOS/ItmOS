@@ -11,6 +11,7 @@ global kernel_main
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
+	ATA_IDENTIFY
 	mov [memout + 0], byte 's'
 	mov [memout + 1], byte 'u'
 	mov [memout + 2], byte 'c'
