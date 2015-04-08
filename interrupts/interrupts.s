@@ -55,7 +55,8 @@ keyboard_int:
         ;; Shows some symbol
 	mov ax, 'oo'
         in al, 0x60
-	mov [0xB8032], ax
+	;; TODO: Hardcoded place?
+	mov [0xB8000 + 2*80*25 - 2], ax
         ret
 
 timer_int:
@@ -66,7 +67,8 @@ timer_int:
 	;; Load cool symbol
 	mov al, [timer_symbol]
 	;; Print it
-	mov [0xB8000], ax
+	;; TODO: Hardcoded place?
+	mov [0xB8000 + 2 * 80*25 - 4], ax
 
 	;; Change this cool symbol for the next time
 	sub al, 'a'
