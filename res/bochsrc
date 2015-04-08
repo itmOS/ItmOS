@@ -1,5 +1,5 @@
 megs: 1024
-ata0-master: type=disk, path="./kernel.img", cylinders=40, heads=16, spt=63, translation=lba
+ata0-master: type=disk, path="./disk.img", cylinders=40, heads=16, spt=63, translation=lba
 ata1-slave: type=cdrom, path="./kernel.iso", status=inserted
 boot: cdrom
 cpu: count=1, reset_on_triple_fault=0
