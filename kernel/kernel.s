@@ -4,6 +4,7 @@ extern init_interrupts
 
 %include "tty/tty.inc"
 %include "ata/ata.inc"
+%include "aux/log/log.inc"
 
 global kernel_main
 
@@ -11,6 +12,11 @@ global kernel_main
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
+
+	LOG_OK ok_message
+	LOG_ERR err_message
+	LOG_WARN warn_message
+
 	mov [memout + 0], byte 's'
 	mov [memout + 1], byte 'u'
 	mov [memout + 2], byte 'c'
@@ -32,7 +38,10 @@ kernel_main:
 	jmp $
 
 section .data
-hello_world: db 'Hello, world!', 0
+ok_message: db 'This is green and awesome', 0
+err_message: db 'This is red and awful', 0
+warn_message: db 'This is yellow and scaring', 0
+	
 memin: times 600 dw 0
 memout: times 600 dw 0
 lba: dd 200
