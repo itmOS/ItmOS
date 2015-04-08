@@ -1,5 +1,6 @@
 global ata_pio_inseg
 global ata_pio_outseg
+global ata_identify
 
 %include "tty/tty.inc"
 
@@ -20,6 +21,8 @@ global ata_pio_outseg
 %define ATA_PIO_PORT_STATUS      7
 %define ATA_PIO_PORT_COMMAND     7
 
+%define ATA_PORT_CTRL 0x3f6 ; Device control register
+
 ;;; Status reg's bits
 %define ATA_ST_ERR 0x01 ;; Indicates an error occurred. Send a new command
                         ;; to clear it (or nuke it with a Software Reset).
@@ -36,20 +39,113 @@ global ata_pio_outseg
                         ;; (wait for it to clear). In case of 'hang' (it never clears), do a software
                         ;; reset.
 
+;;; Control register bits
+%define ATA_DCR_NIEN 0x02 ;; Disables IRQ sending
+%define ATA_DCR_SRST 0x04 ;; Software reset on all ATA devices on a bus
+%define ATA_DCR_HOB  0x80 ;; Set this to read back the High Order Byte of the
+                          ;; last LBA48 value sent to an I/O port (I don't know
+                          ;; why I need this)
+
 ;;; HD IDs
-%define ATA_LBA28_MASTER 0xE0
+%define ATA_CHS_MASTER 0xA0   ;; Oldest type (doesn't supported at this moment)
+%define ATA_LBA28_MASTER 0xE0 ;; Supported by almost all hard disks
+%define ATA_LBA48_MASTER 0x40 ;; Current standard of hard disks (doesn't
+                              ;; supported yet)
 
 ;;; HD commands
 %define ATA_CMD_READ         0x20
 %define ATA_CMD_WRITE        0x30
 %define ATA_CMD_FLUSH_CACHE  0xE7
+%define ATA_CMD_IDENTIFY     0xEC
 
 ;;; Return codes
-%define ATA_OK  0
-%define ATA_BAD 1
-
+%define ATA_OK       0
+%define ATA_BAD      1
+%define ATA_NO_DRIVE 2
+%define ATA_NOT_ATA  3
 
 section .text
+
+ata_identify:
+	mov al, ATA_CHS_MASTER
+	mov dx, ATA_PIO_BASE_ADDR
+	or dx, ATA_PIO_PORT_DRV_HEAD
+	out dx, al
+	xor eax, eax
+	mov dx, ATA_PIO_BASE_ADDR
+	or dx, ATA_PIO_PORT_SECT_COUNT
+	out dx, al
+	inc dx
+	out dx, al
+	inc dx
+	out dx, al
+	inc dx
+	out dx, al
+	mov dx, ATA_PIO_BASE_ADDR
+	or dx, ATA_PIO_PORT_COMMAND
+	mov al, ATA_CMD_IDENTIFY
+	out dx, al
+	in al, dx
+	cmp al, 0
+	jnz .check_drive
+	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_no_drive_log
+	mov al, ATA_NO_DRIVE
+	jmp .return
+.check_drive
+	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_yes_drive_log
+
+	mov dx, ATA_PIO_BASE_ADDR
+	add dx, ATA_PIO_PORT_STATUS
+	mov ecx, 4            ; we need to repeat this at most 4 times
+.wait
+	;TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_polling_log
+	in al, dx              ; read status byte
+	test al, ATA_ST_BSY    ; wait until BSY flag is cleared
+	je .cleared
+	loop .wait
+.cleared
+	mov dx, ATA_PIO_BASE_ADDR
+	add dx, ATA_PIO_PORT_CYL_LOW
+	in al, dx
+	cmp al, 0
+	jne .not_ata
+	inc dx
+	in al, dx
+	cmp al, 0
+	jne .not_ata
+	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_ata_drive_log
+
+	jmp .return
+.not_ata
+	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), ata_pio_not_ata_drive_log
+	mov al, ATA_NOT_ATA
+.return
+	ret
+
+;;; Does soft reset on both ATA devices
+ata_reset:
+	push edx
+	push eax
+	mov dx, ATA_PORT_CTRL
+	mov al, ATA_DCR_SRST
+	out dx, al ; do a soft reset on the bus
+	xor eax, eax
+	out dx, al
+	in al, dx ; 400ns delay for status bit to reset
+	in al, dx
+	in al, dx
+	in al, dx
+	mov dx, ATA_PIO_BASE_ADDR
+.loop
+	in al, dx
+	and al, ATA_ST_BSY | ATA_ST_RDY
+	cmp al, ATA_ST_RDY ;; we need BSY flag to be clear
+	                   ;; and RDY flag to be set
+	jne .loop
+	pop eax
+	pop edx
+	ret
+
 ;;; Reads byte from specified address. (Uses pio_base_addr as device)
 ;;; Input:
 ;;;   ebp -- absolute lba
@@ -274,5 +370,10 @@ ata_pio_ready_log:          db 'ATA_PIO: Ready', 10, 0
 ata_pio_fail_log:           db 'ATA_PIO: Fail', 10, 0
 
 ata_pio_polling_log:        db 'ATA_PIO: Polling...', 10, 0
+
+ata_pio_no_drive_log:       db 'ATA_PIO: Drive doesnt exist', 10, 0
+ata_pio_yes_drive_log:      db 'ATA_PIO: Drive exists', 10, 0
+ata_pio_not_ata_drive_log:  db 'ATA_PIO: Drive is not ATA', 10, 0
+ata_pio_ata_drive_log:  db 'ATA_PIO: Drive is ATA', 10, 0
 
 ata_pio_debug:              db 'ATA_PIO_DEBUG: %u', 10, 0

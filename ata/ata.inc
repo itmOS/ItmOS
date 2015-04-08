@@ -3,6 +3,11 @@
 
 extern ata_pio_inseg
 extern ata_pio_outseg
+extern ata_identify
+
+%macro ATA_IDENTIFY 0
+	call ata_identify
+%endmacro
 
 %macro ATA_PIO_INSEG 3
 	push ebp
