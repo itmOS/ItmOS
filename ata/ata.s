@@ -373,14 +373,14 @@ ata_pio_read_log:           db 'ATA_PIO: Read status code %u', 10, 0
 ata_pio_outbyte_log:        db 'ATA_PIO: Outbyte LBA: %u', 10, 0
 ata_pio_write_log:          db 'ATA_PIO: Write status code %u', 10, 0
 
-ata_pio_ready_log:          db 'ATA_PIO: Ready', 10, 0
-ata_pio_fail_log:           db 'ATA_PIO: Fail', 10, 0
+ata_pio_ready_log:          db 'ATA_PIO: Ready', 0
+ata_pio_fail_log:           db 'ATA_PIO: Fail', 0
 
-ata_pio_polling_log:        db 'ATA_PIO: Polling...', 10, 0
+ata_pio_polling_log:        db 'ATA_PIO: Polling...', 0
 
-ata_pio_no_drive_log:       db 'ATA_PIO: Drive doesnt exist', 10, 0
-ata_pio_yes_drive_log:      db 'ATA_PIO: Drive exists', 10, 0
-ata_pio_not_ata_drive_log:  db 'ATA_PIO: Drive is not ATA', 10, 0
-ata_pio_ata_drive_log:  db 'ATA_PIO: Drive is ATA', 10, 0
+ata_pio_no_drive_log:       db 'ATA_PIO: Drive doesnt exist', 0
+ata_pio_yes_drive_log:      db 'ATA_PIO: Drive exists', 0
+ata_pio_not_ata_drive_log:  db 'ATA_PIO: Drive is not ATA', 0
+ata_pio_ata_drive_log:      db 'ATA_PIO: Drive is ATA', 0
 
 ata_pio_debug:              db 'ATA_PIO_DEBUG: %u', 10, 0
