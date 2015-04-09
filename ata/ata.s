@@ -1,5 +1,5 @@
-global ata_pio_inseg
-global ata_pio_outseg
+global ata_rd_segs
+global ata_wr_segs
 global ata_identify
 
 %include "tty/tty.inc"
@@ -153,12 +153,43 @@ ata_reset:
 	pop edx
 	ret
 
+;;; int ata_rd_segs(int lba28, int count, char* data);
+ata_rd_segs:
+    push ebp
+    mov ebp, esp
+    push ebx
+    push edi
+    mov ebx, [ebp + 12]
+    mov edi, [ebp + 16]
+    mov ebp, [ebp + 8]
+    call ata_pio_lba28_rd_segs
+    pop edi
+    pop ebx
+    pop ebp
+    ret
+
+
+;;; int ata_wr_segs(int lba28, int count, char* data);
+ata_wr_segs:
+    push ebp
+    mov ebp, esp
+    push ebx
+    push edi
+    mov ebx, [ebp + 12]
+    mov edi, [ebp + 16]
+    mov ebp, [ebp + 8]
+    call ata_pio_lba28_wr_segs
+    pop edi
+    pop ebx
+    pop ebp
+    ret 
+
 ;;; Reads byte from specified address. (Uses pio_base_addr as device)
 ;;; Input:
 ;;;   ebp -- absolute lba
 ;;;   edi -- result buffer
 ;;;   bl  -- number of sectors to read
-ata_pio_inseg:
+ata_pio_lba28_rd_segs:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
 	push ebp
 	push ata_pio_inbyte_log
@@ -238,10 +269,10 @@ ata_pio_inseg:
 
 ;;; Writes byte to specified address. (Uses pio_base_addr as device)
 ;;; Input:
-;;;		esi  -- buffer to write
+;;;   esi  -- buffer to write
 ;;;   ebp  -- absolute lba
 ;;;   bl   -- number of sectors to write
-ata_pio_outseg:
+ata_pio_lba28_wr_segs:
 	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
 	push ebp
 	push ata_pio_outbyte_log

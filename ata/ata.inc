@@ -1,8 +1,8 @@
 %ifndef ATA_INC
 %define ATA_INC
 
-extern ata_pio_inseg
-extern ata_pio_outseg
+extern ata_rd_segs
+extern ata_wr_segs
 extern ata_identify
 
 %macro ATA_IDENTIFY 0
@@ -13,10 +13,11 @@ extern ata_identify
 	push ebp
 	push edi
 	push ebx
-	mov ebp, %1
-	mov edi, %2
-	mov bl, %3
-	call ata_pio_inseg
+	push dword %3
+	push dword %2
+	push dword %1
+	call ata_rd_segs
+    add esp, 12
 	pop ebx
 	pop edi
 	pop ebp
@@ -26,10 +27,11 @@ extern ata_identify
 	push ebp
 	push esi
 	push ebx
-	mov ebp, %1
-	mov esi, %2
-	mov bl, %3
-	call ata_pio_outseg
+    push dword %3
+    push dword %2
+    push dword %1
+	call ata_wr_segs
+    add esp, 12
 	pop ebx
 	pop esi
 	pop ebp
