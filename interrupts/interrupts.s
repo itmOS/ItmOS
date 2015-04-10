@@ -1,5 +1,8 @@
 section .text
 
+%include "tty/tty.inc"
+%include "dev/kbd/kbd.inc"
+
 global init_interrupts
 
 INTERRUPTS_TABLE_SIZE           equ	1 << 11
@@ -62,10 +65,16 @@ keyboard_int:
 	xchg bx, bx
         ;; TODO process scan-code to ASCII-code
         ;; Shows some symbol
-	mov ax, 'oo'
+        
         in al, 0x60
-	;; TODO: Hardcoded place?
-	mov [0xB8000 + 2*80*25 - 2], ax
+        push eax
+        call get_from_scancode
+        add esp, 4
+        test al, al
+        jz .exit
+
+	TTY_PUTC al
+.exit:
         ret
 
 timer_int:
