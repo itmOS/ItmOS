@@ -174,12 +174,12 @@ ata_wr_segs:
     push ebp
     mov ebp, esp
     push ebx
-    push edi
+    push esi
     mov ebx, [ebp + 12]
-    mov edi, [ebp + 16]
+    mov esi, [ebp + 16]
     mov ebp, [ebp + 8]
     call ata_pio_lba28_wr_segs
-    pop edi
+    pop esi
     pop ebx
     pop ebp
     ret 
@@ -190,10 +190,10 @@ ata_wr_segs:
 ;;;   edi -- result buffer
 ;;;   bl  -- number of sectors to read
 ata_pio_lba28_rd_segs:
-	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
+	;TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
 	push ebp
 	push ata_pio_inbyte_log
-	TTY_PRINTF
+	;TTY_PRINTF
 	pop ebp
 	pop ebp
 .read
@@ -273,10 +273,10 @@ ata_pio_lba28_rd_segs:
 ;;;   ebp  -- absolute lba
 ;;;   bl   -- number of sectors to write
 ata_pio_lba28_wr_segs:
-	TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
+	;TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
 	push ebp
 	push ata_pio_outbyte_log
-	TTY_PRINTF
+	;TTY_PRINTF
 	pop ebp
 	pop ebp
 .write

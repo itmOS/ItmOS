@@ -1,10 +1,8 @@
 #include <string.h>
+#include "ata.h"
 
 void test_register_single(char* name,
                           int (*body)(void));
-
-int ata_rd_segs(int lba28, int count, char* data);
-int ata_wr_segs(int lba28, int count, char* data);
 
 
 int ata_simple_read_test(void) {

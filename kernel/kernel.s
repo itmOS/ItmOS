@@ -34,8 +34,8 @@ kernel_main:
 	mov [memout + 302], byte 's'
 	mov [memout + 303], byte 10
 	mov [memout + 304], byte 0
-	ATA_PIO_OUTSEG [lba], memout, 2
-	ATA_PIO_INSEG [lba], memin, 2
+	ATA_PIO_OUTSEG [lba], 2, memout
+	ATA_PIO_INSEG [lba], 2, memin
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), memin
 	TTY_PUTS_STYLED TTY_STYLE(TTY_RED, TTY_BLUE), memin + 300
 
