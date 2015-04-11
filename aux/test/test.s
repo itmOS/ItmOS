@@ -40,24 +40,34 @@ test_run_all:
 	push edx
 
 	xor edx, edx		; how many tests failed
+	push ecx
 	LOG_SIMPLE starting_tests
+	pop ecx
 
 	xor ecx, ecx
 	.loop:
 	mov edi, [single_tests + ecx * test_t.sizeof + test_t.name]
+	push ecx
 	LOG_SIMPLE edi
+	pop ecx
 
 	mov esi, [single_tests + ecx * test_t.sizeof + test_t.ptr]
+	push ecx
 	call esi
+	pop ecx
 	test eax, eax
 	jz .test_passed
 	;; Test failed
+	push ecx
 	LOG_ERR edi
+	pop ecx
 	inc edx
 	jmp .continue
 
 	.test_passed
+	push ecx
 	LOG_OK edi
+	pop ecx
 
 	.continue
 
