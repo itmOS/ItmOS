@@ -1,5 +1,8 @@
 -include Makefile.local
 
+export CC ?= gcc
+export CFLAGS = -m32 -Wall -Wextra -std=c99 -ffreestanding
+
 export AS = yasm
 export ASFLAGS = -f elf32 -I $(shell pwd)
 

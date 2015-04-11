@@ -1,8 +1,6 @@
 OUTPUT = ata.a
 OBJ = ata.o ata_test.o
 
-export CFLAGS = -m32 -Wall -Wextra -std=c99
-
 all: $(OUTPUT)
 
 $(OUTPUT): $(OBJ)

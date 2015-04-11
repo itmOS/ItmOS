@@ -2,8 +2,6 @@
 # The last one should just output all exported objects.
 SUBMODULES = string
 
-export CFLAGS = -m32 -Wall -Wextra -std=c99
-
 OBJ = $(foreach DIR, $(SUBMODULES), $(shell $(MAKE) --no-print-directory -C $(DIR) list-objs))
 OUTPUT = util.a
 
