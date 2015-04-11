@@ -29,9 +29,9 @@ int test_strcpy_hard(void) {
 }
 
 void string_register_tests(void) {
-    test_register_single("util/string: strcpy_simple", &test_strcpy_simple);
-    test_register_single("util/string: strcpy_hard", &test_strcpy_hard);
-    test_register_single("util/string: strcmp_equals", &test_strcmp_equals);
-    test_register_single("util/string: strcmp_greater", &test_strcmp_greater);
-    test_register_single("util/string: strcmp_lesser", &test_strcmp_lesser);
+    test_register_single("UTIL/STRING: strcpy_simple", &test_strcpy_simple);
+    test_register_single("UTIL/STRING: strcpy_hard", &test_strcpy_hard);
+    test_register_single("UTIL/STRING: strcmp_equals", &test_strcmp_equals);
+    test_register_single("UTIL/STRING: strcmp_greater", &test_strcmp_greater);
+    test_register_single("UTIL/STRING: strcmp_lesser", &test_strcmp_lesser);
 }

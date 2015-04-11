@@ -190,12 +190,6 @@ ata_wr_segs:
 ;;;   edi -- result buffer
 ;;;   bl  -- number of sectors to read
 ata_pio_lba28_rd_segs:
-	;TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
-	push ebp
-	push ata_pio_inbyte_log
-	;TTY_PRINTF
-	pop ebp
-	pop ebp
 .read
 	xor eax, eax
 	mov ecx, ebp
@@ -234,7 +228,6 @@ ata_pio_lba28_rd_segs:
 	cmp al, ATA_OK
 	jne .failed
 
-	LOG_OK ata_pio_ready_log
 	sub dl, 7     ; return to 0x1f0
 
 	mov ecx, 256
@@ -245,12 +238,6 @@ ata_pio_lba28_rd_segs:
 	in al, dx     ; 400ns delay is the best thing i ever saw
 	in al, dx     ; wow it's so cool
 	in al, dx
-
-	push eax
-	push ata_pio_read_log
-	TTY_PRINTF
-	pop eax
-	pop eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
 	jne .failed
@@ -273,12 +260,6 @@ ata_pio_lba28_rd_segs:
 ;;;   ebp  -- absolute lba
 ;;;   bl   -- number of sectors to write
 ata_pio_lba28_wr_segs:
-	;TTY_SET_STYLE TTY_STYLE (TTY_RED, TTY_BLUE)
-	push ebp
-	push ata_pio_outbyte_log
-	;TTY_PRINTF
-	pop ebp
-	pop ebp
 .write
 	xor eax, eax
 	mov ecx, ebp
@@ -317,7 +298,6 @@ ata_pio_lba28_wr_segs:
 	cmp al, ATA_OK
 	jne .failed
 
-	LOG_OK ata_pio_ready_log
 	sub dl, 7     ; return to 0x1f0
 
 	mov ecx, 256
@@ -334,12 +314,6 @@ ata_pio_lba28_wr_segs:
 	in al, dx     ; 400ns delay is the best thing i ever saw
 	in al, dx     ; wow it's so cool
 	in al, dx
-
-	push eax
-	push ata_pio_write_log
-	TTY_PRINTF
-	pop eax
-	pop eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
 	jne .failed
@@ -366,7 +340,6 @@ ata_poll:
 	add dx, ATA_PIO_PORT_STATUS
 	mov ecx, 4            ; we need to repeat this at most 4 times
 .wait
-	LOG_OK ata_pio_polling_log
 	in al, dx              ; read status byte
 	test al, ATA_ST_BSY    ; wait until BSY flag is cleared
 	jne .wait_more
@@ -376,7 +349,6 @@ ata_poll:
 	loop .wait
 
 .wait_some_more
-	LOG_WARN ata_pio_polling_log
 	in al, dx                       ; read status byte
 	test al, ATA_ST_BSY             ; wait until BSY flag is cleared
 	jne .wait_some_more
