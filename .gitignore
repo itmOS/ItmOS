@@ -6,4 +6,5 @@ isoroot
 hardroot
 *.iso
 *.img
+*.swp
 *~
