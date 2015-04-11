@@ -1,17 +1,29 @@
 section .text
 
+%include "tty/tty.inc"
+%include "dev/kbd/kbd.inc"
+
 global init_interrupts
 
-INTERRUPTS_TABLE_SIZE   equ	1 << 11
-IRQ_BASE                equ	0x20
+INTERRUPTS_TABLE_SIZE           equ	1 << 11
+IRQ_BASE                        equ	0x20
+IRQ_BASE2                       equ	0x28
+
+MASTER_PIC_MASK                 equ     0x03
+SLAVE_PIC_MASK                  equ     0x00
+
+PIC1_PORT1                      equ     0x20
+PIC1_PORT2                      equ     0x21
+PIC2_PORT1                      equ     0xA0
+PIC2_PORT2                      equ     0xA1
 
 %include "tty/tty.inc"
 
 ;;; Sends 0x20 to PICs ports
 %macro NOTIFYPIC 0
         mov al, 0x20
-        out 0x20, al
-        out 0xA0, al
+        out PIC1_PORT1, al
+        out PIC2_PORT1, al
 %endmacro
 
 ;;; Universal wrapper for handlers
@@ -53,10 +65,16 @@ keyboard_int:
 	xchg bx, bx
         ;; TODO process scan-code to ASCII-code
         ;; Shows some symbol
-	mov ax, 'oo'
+        
         in al, 0x60
-	;; TODO: Hardcoded place?
-	mov [0xB8000 + 2*80*25 - 2], ax
+        push eax
+        call get_from_scancode
+        add esp, 4
+        test al, al
+        jz .exit
+
+	TTY_PUTC al
+.exit:
         ret
 
 timer_int:
@@ -88,33 +106,33 @@ init_interrupts:
         
         ;; Start initialising sequence
         mov al, 0x11
-        out 0x20, al
-        out 0xA0, al
+        out PIC1_PORT1, al
+        out PIC2_PORT1, al
 
         ;; Send to PIC1 new start of interrupts
-        mov al, 0x20
-        out 0x21, al
+        mov al, IRQ_BASE
+        out PIC1_PORT2, al
         ;; Send to PIC2 new start of interrupts
-        mov al, 0x28
-        out 0xA1, al
+        mov al, IRQ_BASE2
+        out PIC2_PORT2, al
         ;; Set PIC1 as master
         mov al, 0x04
-        out 0x21, al
+        out PIC1_PORT2, al
         ;; Set PIC2 as slave
         mov al, 0x02
-        out 0xA1, al
+        out PIC2_PORT2, al
         ;; Set 8086 mode for PIC1 and PIC2
         mov al, 0x01
-        out 0x21, al
+        out PIC1_PORT2, al
         mov al, 0x01
-        out 0xA1, al
+        out PIC2_PORT2, al
         
         ;; Disable all IRQ for PIC2, PIC1
         ;; Enable keyboard, timer for PIC1
-        mov al, ~0x03
-        out 0x21, al
-        mov al, ~0x00
-        out 0xA1, al
+        mov al, ~MASTER_PIC_MASK
+        out PIC1_PORT2, al
+        mov al, ~SLAVE_PIC_MASK
+        out PIC2_PORT2, al
 
         ;; Set handler for timer interrupts
         INITHANDLER timer_int_handler, IRQ_BASE, 0x8E00
