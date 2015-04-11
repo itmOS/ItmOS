@@ -1,4 +1,5 @@
-#include "string.h"
+#include "../util/string/i_string.h"
+#include "../tty/tty.h"
 #include "ata.h"
 
 void test_register_single(char* name,
@@ -6,15 +7,18 @@ void test_register_single(char* name,
 
 
 int ata_simple_read_test(void) {
-    char data[600];
-    i_memset(data, 0, sizeof(data));
+    char data[260];
+    i_memset(data, 0, 256);
     i_strcpy(data, "success");
-    i_strcpy(data + 300, "another success");
-    ata_wr_segs(200, 2, data);
-    char data2[600];
-    i_memset(data2, 0, sizeof(data));
-    ata_rd_segs(200, 2, data2);
-    return i_strcmp(data, data2) || i_strcmp(data + 300, data2 + 300);
+    tty_printf(data);
+    ata_wr_segs(600, 1, data);
+    tty_printf(data);
+    char data2[260];
+    i_memset(data2, 0, 256);
+    __asm("xchg %bx, %bx");
+    ata_rd_segs(600, 1, data2);
+    tty_printf(data);
+    return i_strcmp(data, data2);
 }
 
 void ata_register_tests(void) {

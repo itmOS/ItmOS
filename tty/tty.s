@@ -10,6 +10,7 @@ global tty_set_style
 global tty_save_style
 global tty_restore_style
 global tty_printf
+global tty_cdecl_puts
 
 ;;; Clear the screen
 tty_clear:

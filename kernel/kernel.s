@@ -20,7 +20,7 @@ kernel_main:
 
 	TEST_REGISTER_SINGLE testing, simple_test
 	call c_register_tests
-    ;call ata_register_tests
+    call ata_register_tests
     call string_register_tests
 	
 	ATA_IDENTIFY
