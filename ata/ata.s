@@ -60,10 +60,11 @@ global ata_identify
 %define ATA_CMD_IDENTIFY     0xEC
 
 ;;; Return codes
-%define ATA_OK       0
-%define ATA_BAD      1
-%define ATA_NO_DRIVE 2
-%define ATA_NOT_ATA  3
+%define ATA_OK        0
+%define ATA_BAD       1
+%define ATA_NO_DRIVE  2
+%define ATA_NOT_ATA   3
+%define ATA_DRIVE_ERR 4
 
 section .text
 
@@ -88,24 +89,20 @@ ata_identify:
 	out dx, al
 	in al, dx
 	cmp al, 0
-	jnz .check_drive
-	LOG_ERR ata_pio_no_drive_log
-	mov al, ATA_NO_DRIVE
-	jmp .return
-.check_drive
-	LOG_OK ata_pio_yes_drive_log
+	jz .no_drive
+	LOG_OK ata_pio_yes_drive
 
 	mov dx, ATA_PIO_BASE_ADDR
 	add dx, ATA_PIO_PORT_STATUS
-	mov ecx, 4            ; we need to repeat this at most 4 times
+	mov ecx, 4             ; we need to repeat this at most 4 times
 .wait
 	in al, dx              ; read status byte
 	test al, ATA_ST_BSY    ; wait until BSY flag is cleared
 	je .cleared
 	loop .wait
 .cleared
-	mov dx, ATA_PIO_BASE_ADDR
-	add dx, ATA_PIO_PORT_CYL_LOW
+	mov dx, ATA_PIO_BASE_ADDR    ; check for this I/O ports to be cleared
+	add dx, ATA_PIO_PORT_CYL_LOW ; it isn't ATA device otherwise
 	in al, dx
 	cmp al, 0
 	jne .not_ata
@@ -113,18 +110,45 @@ ata_identify:
 	in al, dx
 	cmp al, 0
 	jne .not_ata
-	LOG_OK ata_pio_ata_drive_log
-	;mov dx, ATA_PIO_BASE_ADDR
-	;add dx, ATA_PIO_PORT_STATUS
-;.poll
-	;in al, dx
-	;test al, ATA_ST_BSY
-	;je .poll
-	;test al, ATA_ST_DRQ
+	LOG_OK ata_pio_ata_drive
+    call ata_poll                ; poll to read 256 words, containing
+    cmp al, ATA_OK               ; information about our device
+    jne .drive_error
 
+    mov edx, ATA_PIO_BASE_ADDR
+    mov edi, ata_identify_buffer
+	mov ecx, 256
+	cld
+	rep insw                     ; read the info about device
+    
+    test word [ata_identify_buffer + 166], 0x400 ; check if 10th bit is set at 83th uint16_t
+    jz .no_lba48_support                         ; it supports LBA48 if so
+    cmp dword [ata_identify_buffer + 200], 0     ; number of addreasable sectors with LBA48
+                                                 ; FIXME: qword must be here
+    je .no_lba48_support
+    LOG_OK ata_pio_lba48_supported
+.no_lba48_support
+    cmp dword [ata_identify_buffer + 120], 0     ; check if 60+61 words (taken as uint32_t)
+    je .no_lba28_support                         ; is non-zero 
+    LOG_OK ata_pio_lba28_supported               ; this uint32_t represent number of addreseable
+                                                 ; sectors on the drive
+                                                 ; you can find more information about this at
+                                                 ; ATA8-Command-Set specification
+                                                 ; TODO: print number of addreasable sectors
+    jmp .return
+.no_lba28_support    
+    LOG_ERR ata_pio_lba28_not_supported
 	jmp .return
+.drive_error
+    LOG_ERR ata_pio_drive_error
+    mov al, ATA_DRIVE_ERR
+    jmp .return
+.no_drive
+    LOG_ERR ata_pio_no_drive
+    mov al, ATA_NO_DRIVE
+    jmp .return
 .not_ata
-	LOG_ERR ata_pio_not_ata_drive_log
+	LOG_ERR ata_pio_not_ata_drive
 	mov al, ATA_NOT_ATA
 .return
 	ret
@@ -368,22 +392,28 @@ ata_poll:
 	ret
 
 section .data
+ata_identify_buffer: times 256 dw 0
 
 ;;; Log string
-ata_pio_inbyte_log:         db 'ATA_PIO: Inbyte LBA: %u', 10, 0
-ata_pio_read_log:           db 'ATA_PIO: Read status code %u', 10, 0
+ata_pio_inbyte_log:          db 'ATA_PIO: Inbyte LBA: %u', 10, 0
+ata_pio_read_log:            db 'ATA_PIO: Read status code %u', 10, 0
 
-ata_pio_outbyte_log:        db 'ATA_PIO: Outbyte LBA: %u', 10, 0
-ata_pio_write_log:          db 'ATA_PIO: Write status code %u', 10, 0
+ata_pio_outbyte_log:         db 'ATA_PIO: Outbyte LBA: %u', 10, 0
+ata_pio_write_log:           db 'ATA_PIO: Write status code %u', 10, 0
 
-ata_pio_ready_log:          db 'ATA_PIO: Ready', 0
-ata_pio_fail_log:           db 'ATA_PIO: Fail', 0
+ata_pio_ready_log:           db 'ATA_PIO: Ready', 0
+ata_pio_fail_log:            db 'ATA_PIO: Fail', 0
 
-ata_pio_polling_log:        db 'ATA_PIO: Polling...', 0
+ata_pio_polling_log:         db 'ATA_PIO: Polling...', 0
 
-ata_pio_no_drive_log:       db 'ATA_PIO: Drive doesnt exist', 0
-ata_pio_yes_drive_log:      db 'ATA_PIO: Drive exists', 0
-ata_pio_not_ata_drive_log:  db 'ATA_PIO: Drive is not ATA', 0
-ata_pio_ata_drive_log:      db 'ATA_PIO: Drive is ATA', 0
+ata_pio_no_drive:             db 'ATA_PIO: Drive doesnt exist', 0
+ata_pio_yes_drive:            db 'ATA_PIO: Drive exists', 0
+ata_pio_not_ata_drive:        db 'ATA_PIO: Drive is not ATA', 0
+ata_pio_ata_drive:            db 'ATA_PIO: Drive is ATA', 0
+ata_pio_drive_error:          db 'ATA_PIO: Drive error', 0
 
-ata_pio_debug:              db 'ATA_PIO_DEBUG: %u', 10, 0
+ata_pio_lba48_supported:      db 'ATA_PIO: LBA48 is supported', 0
+ata_pio_lba28_supported:      db 'ATA_PIO: LBA28 is supported', 0
+ata_pio_lba28_not_supported:  db 'ATA_PIO: LBA28 is not supported', 0
+
+ata_pio_debug:                db 'ATA_PIO_DEBUG: %u', 10, 0
