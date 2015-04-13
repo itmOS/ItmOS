@@ -59,6 +59,12 @@ global ata_identify
 %define ATA_CMD_FLUSH_CACHE  0xE7
 %define ATA_CMD_IDENTIFY     0xEC
 
+
+;;; ATA Identify command info words
+%define ATA_IDENTIFY_LBA48_SUPPORTED 83
+%define ATA_IDENTIFY_LBA48_SECTORS   100
+%define ATA_IDENTIFY_LBA28_SECTORS   60
+
 ;;; Return codes
 %define ATA_OK        0
 %define ATA_BAD       1
@@ -116,25 +122,25 @@ ata_identify:
     jne .drive_error
 
     mov edx, ATA_PIO_BASE_ADDR
-    mov edi, ata_identify_buffer
+    mov edi, ata_identify_data   
 	mov ecx, 256
 	cld
 	rep insw                     ; read the info about device
     
-    test word [ata_identify_buffer + 166], 0x400 ; check if 10th bit is set at 83th uint16_t
-    jz .no_lba48_support                         ; it supports LBA48 if so
-    cmp dword [ata_identify_buffer + 200], 0     ; number of addreasable sectors with LBA48
-                                                 ; FIXME: qword must be here
+    test word [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SUPPORTED], 0x400 ;; check if 10th bit is set at 83th uint16_t
+    jz .no_lba48_support                                                ;; it supports LBA48 if so
+    cmp dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SECTORS], 0   ;; number of addreasable sectors with LBA48
+                                                                        ;; FIXME: qword must be here
     je .no_lba48_support
     LOG_OK ata_pio_lba48_supported
 .no_lba48_support
-    cmp dword [ata_identify_buffer + 120], 0     ; check if 60+61 words (taken as uint32_t)
-    je .no_lba28_support                         ; is non-zero 
-    LOG_OK ata_pio_lba28_supported               ; this uint32_t represent number of addreseable
-                                                 ; sectors on the drive
-                                                 ; you can find more information about this at
-                                                 ; ATA8-Command-Set specification
-                                                 ; TODO: print number of addreasable sectors
+    cmp dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS], 0     ;; check if 60+61 words (taken as uint32_t)
+    je .no_lba28_support                                                  ;; is non-zero 
+    LOG_OK ata_pio_lba28_supported                                        ;; this uint32_t represent number of addreseable
+                                                                          ;; sectors on the drive
+                                                                          ;; you can find more information about this at
+                                                                          ;; ATA8-Command-Set specification
+                                                                          ;; TODO: print number of addreasable sectors
     jmp .return
 .no_lba28_support    
     LOG_ERR ata_pio_lba28_not_supported
@@ -183,10 +189,23 @@ ata_rd_segs:
     mov ebp, esp
     push ebx
     push edi
+    test word [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SUPPORTED], 0x400 ; see ata_identify for more information
+    jnz .lba48_support                                                      
+    
+    cmp dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS], 0       ; see ata_identify for more information 
+    jne .lba28_support                           
+    jmp .fail
+.lba48_support
+    ; TODO implement LBA48 support
+.lba28_support
     mov ebx, [ebp + 12]
     mov edi, [ebp + 16]
     mov ebp, [ebp + 8]
     call ata_pio_lba28_rd_segs
+    jmp .return
+.fail
+    LOG_ERR ata_pio_read_error
+.return
     pop edi
     pop ebx
     pop ebp
@@ -199,10 +218,23 @@ ata_wr_segs:
     mov ebp, esp
     push ebx
     push esi
+    test word [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SUPPORTED], 0x400 ; see ata_identify for more information 
+    jnz .lba48_support                           
+
+    cmp dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS], 0     ; see ata_identify for more information
+    jne .lba28_support                           
+    jmp .fail
+.lba48_support
+    ; TODO implement LBA48_support
+.lba28_support
     mov ebx, [ebp + 12]
     mov esi, [ebp + 16]
     mov ebp, [ebp + 8]
     call ata_pio_lba28_wr_segs
+    jmp .return
+.fail
+    LOG_ERR ata_pio_write_error
+.return
     pop esi
     pop ebx
     pop ebp
@@ -392,7 +424,7 @@ ata_poll:
 	ret
 
 section .data
-ata_identify_buffer: times 256 dw 0
+ata_identify_data: times 256 dw 0
 
 ;;; Log string
 ata_pio_inbyte_log:          db 'ATA_PIO: Inbyte LBA: %u', 10, 0
@@ -415,5 +447,8 @@ ata_pio_drive_error:          db 'ATA_PIO: Drive error', 0
 ata_pio_lba48_supported:      db 'ATA_PIO: LBA48 is supported', 0
 ata_pio_lba28_supported:      db 'ATA_PIO: LBA28 is supported', 0
 ata_pio_lba28_not_supported:  db 'ATA_PIO: LBA28 is not supported', 0
+
+ata_pio_read_error:           db 'ATA_PIO: Read error', 0
+ata_pio_write_error:          db 'ATA_PIO: Write error', 0
 
 ata_pio_debug:                db 'ATA_PIO_DEBUG: %u', 10, 0
