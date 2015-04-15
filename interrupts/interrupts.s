@@ -62,7 +62,6 @@ keyboard_int_handler:
         WRAPHANDLER keyboard_int
 
 keyboard_int:
-	xchg bx, bx
         ;; TODO process scan-code to ASCII-code
         ;; Shows some symbol
         
@@ -78,8 +77,6 @@ keyboard_int:
         ret
 
 timer_int:
-	xchg bx, bx
-
 	;; Set some good color
 	mov ax, 'oo'
 	;; Load cool symbol
