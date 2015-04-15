@@ -8,7 +8,6 @@ extern init_interrupts
 %include "util/test/test.inc"
 
 global kernel_main
-extern c_register_tests
 extern ata_register_tests
 extern string_register_tests
 
@@ -19,7 +18,6 @@ kernel_main:
 	call logging_prelude
 
 	TEST_REGISTER_SINGLE testing, simple_test
-	call c_register_tests
     call ata_register_tests
     call string_register_tests
 	
