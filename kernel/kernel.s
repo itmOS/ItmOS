@@ -4,8 +4,8 @@ extern init_interrupts
 
 %include "tty/tty.inc"
 %include "ata/ata.inc"
-%include "aux/log/log.inc"
-%include "aux/test/test.inc"
+%include "util/log/log.inc"
+%include "util/test/test.inc"
 
 global kernel_main
 extern c_register_tests

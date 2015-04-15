@@ -3,7 +3,7 @@ global ata_wr_segs
 global ata_identify
 
 %include "tty/tty.inc"
-%include "aux/log/log.inc"
+%include "util/log/log.inc"
 
 ;;; Shitty implementation of ATA driver. Errors are handled, but nothing can be
 ;;; done with them at this moment.

@@ -1,6 +1,6 @@
 # Each of submodules Makefiles should provide default, "clean" and "list-objs" targets.
 # The last one should just output all exported objects.
-SUBMODULES = string
+SUBMODULES = string log test
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(shell $(MAKE) --no-print-directory -C $(DIR) list-objs))
 OUTPUT = util.a

@@ -1,10 +1,10 @@
 ;;; Structures and macros for the ItmOS testing framework
-;;; see aux/test/test.s
+;;; see util/test/test.s
 
-%ifndef AUX_TEST_INC
-%define AUX_TEST_INC
+%ifndef UTIL_TEST_INC
+%define UTIL_TEST_INC
 
-%include "aux/test/test_t.inc"
+%include "util/test/test_t.inc"
 
 extern test_register_single
 extern test_run_all
@@ -20,4 +20,4 @@ extern test_run_all
 call test_run_all
 %endmacro
 
-%endif 				; AUX_TEST_INC
+%endif 				; UTIL_TEST_INC

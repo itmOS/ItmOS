@@ -1,5 +1,5 @@
-%ifndef AUX_TEST_TEST_T_INC
-%define AUX_TEST_TEST_T_INC
+%ifndef UTIL_TEST_TEST_T_INC
+%define UTIL_TEST_TEST_T_INC
 
 ;;; To create test write
 ;;; 
@@ -19,4 +19,4 @@ struc test_t
 .sizeof:
 endstruc
 
-%endif ; AUX_TEST_TEST_T_INC
+%endif ; UTIL_TEST_TEST_T_INC

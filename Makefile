@@ -30,7 +30,7 @@ ISO_ROOT ?= isoroot
 ISO ?= kernel.iso
 OUTPUT_DIR ?= $(ISO_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
-SUBMODULES ?= boot kernel tty ata interrupts aux c util dev
+SUBMODULES ?= boot kernel tty ata interrupts c util dev
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 

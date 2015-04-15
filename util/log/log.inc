@@ -1,5 +1,5 @@
-%ifndef AUX_LOG_INC
-%define AUX_LOG_INC
+%ifndef UTIL_LOG_INC
+%define UTIL_LOG_INC
 
 %include "tty/tty.inc"
 
@@ -36,4 +36,4 @@ pop eax
 pop esi
 %endmacro
 
-%endif ; AUX_LOG_INC
+%endif ; UTIL_LOG_INC

@@ -1,7 +1,7 @@
 ;;; This is the ItmOS testing framework.
 
-%include "aux/log/log.inc"
-%include "aux/test/test_t.inc"
+%include "util/log/log.inc"
+%include "util/test/test_t.inc"
 
 global test_register_single
 global test_run_all
