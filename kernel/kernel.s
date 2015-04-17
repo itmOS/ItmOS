@@ -2,6 +2,7 @@ section .text
 
 %include "tty/tty.inc"
 %include "ata/ata.inc"
+%include "util/macro.inc"
 %include "util/log/log.inc"
 %include "util/test/test.inc"
 %include "interrupts/interrupts_extern.inc"
@@ -26,7 +27,7 @@ kernel_main:
     push dword -80
     push dword 70
     push sprintf_test
-    TTY_PRINTF
+    CCALL tty_printf, sprintf_test, dword 70, dword -80
     pop eax
     pop eax
     pop eax
