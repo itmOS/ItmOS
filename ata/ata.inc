@@ -9,7 +9,7 @@ extern ata_identify
 	call ata_identify
 %endmacro
 
-%macro ATA_PIO_INSEG 3
+%macro ATA_INSEG 3
 	push ebp
 	push edi
 	push ebx
@@ -23,7 +23,7 @@ extern ata_identify
 	pop ebp
 %endmacro
 
-%macro ATA_PIO_OUTSEG 3
+%macro ATA_OUTSEG 3
 	push ebp
 	push esi
 	push ebx

@@ -22,6 +22,6 @@ clean:
 		echo "Cleaning $(MODULE_NAME)/$$dir"; \
 		$(MAKE) --no-print-directory clean -C $$dir; \
 	done
-	rm -rf $(ISO) $(ISO_ROOT)
+	rm -rf $(OUTPUT)
 
 .PHONY: all clean $(ISO)

@@ -426,13 +426,7 @@ ata_poll:
 section .data
 ata_identify_data: times 256 dw 0
 
-;;; Log string
-ata_pio_inbyte_log:          db 'ATA_PIO: Inbyte LBA: %u', 10, 0
-ata_pio_read_log:            db 'ATA_PIO: Read status code %u', 10, 0
-
-ata_pio_outbyte_log:         db 'ATA_PIO: Outbyte LBA: %u', 10, 0
-ata_pio_write_log:           db 'ATA_PIO: Write status code %u', 10, 0
-
+;;; Log strings
 ata_pio_ready_log:           db 'ATA_PIO: Ready', 0
 ata_pio_fail_log:            db 'ATA_PIO: Fail', 0
 
@@ -450,5 +444,3 @@ ata_pio_lba28_not_supported:  db 'ATA_PIO: LBA28 is not supported', 0
 
 ata_pio_read_error:           db 'ATA_PIO: Read error', 0
 ata_pio_write_error:          db 'ATA_PIO: Write error', 0
-
-ata_pio_debug:                db 'ATA_PIO_DEBUG: %u', 10, 0
