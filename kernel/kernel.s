@@ -1,11 +1,10 @@
 section .text
 
-extern init_interrupts
-
 %include "tty/tty.inc"
 %include "ata/ata.inc"
 %include "util/log/log.inc"
 %include "util/test/test.inc"
+%include "interrupts/interrupts_extern.inc"
 
 global kernel_main
 extern ata_register_tests
@@ -15,11 +14,11 @@ extern string_register_tests
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
-	call logging_prelude
+        call logging_prelude
 
 	TEST_REGISTER_SINGLE testing, simple_test
-    call ata_register_tests
-    call string_register_tests
+        call ata_register_tests
+        call string_register_tests
 	
 	ATA_IDENTIFY
 
