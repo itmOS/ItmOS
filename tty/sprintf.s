@@ -9,7 +9,9 @@ div10:  ; divide edx:eax by 10
         mov eax, edx
         xor edx, edx
         div ebx
+        xchg eax, ecx
         div ebx
+        xchg ecx, edx
         ; ecx - remainder
         ; edx:eax - quotient
         ret

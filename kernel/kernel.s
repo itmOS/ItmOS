@@ -23,6 +23,13 @@ kernel_main:
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
+    push dword -80
+    push dword 70
+    push sprintf_test
+    TTY_PRINTF
+    pop eax
+    pop eax
+    pop eax
 	jmp $
 
 logging_prelude:
@@ -48,6 +55,8 @@ warn_message:   db 'This is yellow and scaring', 0
 real_logging:	db 10,'Writing real log messages, please check if everything is OK',0
 
 testing:	db 'KERNEL: Simple test',0
+
+sprintf_test: db 'TTY: %u test %d', 10, 0
 
 memin: times 600 dw 0
 memout: times 600 dw 0
