@@ -294,6 +294,16 @@ ata_pio_lba28_rd_segs:
 	in al, dx     ; 400ns delay is the best thing i ever saw
 	in al, dx     ; wow it's so cool
 	in al, dx
+    
+    call ata_poll
+    cmp al, ATA_OK
+    jne .failed
+
+    ;push eax
+    ;push ata_pio_status
+    ;TTY_PRINTF
+    ;pop eax
+    ;pop eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
 	jne .failed
@@ -366,10 +376,20 @@ ata_pio_lba28_wr_segs:
 	mov al, ATA_CMD_FLUSH_CACHE
 	out dx, al
 
+    call ata_poll
+    cmp al, ATA_OK
+    jne .failed
+
 	in al, dx     ; godlike ATA interface
 	in al, dx     ; 400ns delay is the best thing i ever saw
 	in al, dx     ; wow it's so cool
 	in al, dx
+
+    ;push eax
+    ;push ata_pio_status
+    ;TTY_PRINTF
+    ;pop eax
+    ;pop eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
 	jne .failed
@@ -444,3 +464,5 @@ ata_pio_lba28_not_supported:  db 'ATA_PIO: LBA28 is not supported', 0
 
 ata_pio_read_error:           db 'ATA_PIO: Read error', 0
 ata_pio_write_error:          db 'ATA_PIO: Write error', 0
+
+ata_pio_status:               db 'ATA_PIO: Status code %u', 10, 0
