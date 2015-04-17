@@ -4,67 +4,26 @@ section .text
 %include "dev/kbd/kbd.inc"
 
 global init_interrupts
+global interrupt_manager
+global interrupt_handlers
 
-INTERRUPTS_TABLE_SIZE           equ	1 << 11
-IRQ_BASE                        equ	0x20
-IRQ_BASE2                       equ	0x28
+global MASTER_PIC_MASK
+global SLAVE_PIC_MASK
 
-MASTER_PIC_MASK                 equ     0x03
-SLAVE_PIC_MASK                  equ     0x00
-
-PIC1_PORT1                      equ     0x20
-PIC1_PORT2                      equ     0x21
-PIC2_PORT1                      equ     0xA0
-PIC2_PORT2                      equ     0xA1
 
 %include "tty/tty.inc"
+%include "interrupts.inc"
 
-;;; Sends 0x20 to PICs ports
-%macro NOTIFYPIC 0
-        mov al, 0x20
-        out PIC1_PORT1, al
-        out PIC2_PORT1, al
-%endmacro
+;;; Gets number of interrupt in eax and calls handler for it
+interrupt_manager:
+        mov dword eax, [interrupt_handlers + eax * 4]
+        call eax
+        ret
 
-;;; Universal wrapper for handlers
-;;; Saves registers, calls handler, sends EOI
-%macro WRAPHANDLER 1
-        pusha
-
-        call %1
-        ;; Send EOI(end of interrupt) to PIC
-        NOTIFYPIC
-
-        popa
-        iret
-%endmacro
-
-;;; Fills IDT element of given interrupt(2) using given handler(1), types and attributes(3)
-%macro INITHANDLER 3 
-        pusha
-        ;; Filling the IDT element
-        mov eax, %1                                     ; handler address
-        mov ecx, %2                                     ; interrupt index
-        
-        mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
-        mov word [interrupt_table + ecx * 8 + 2], 8     ; set code segment selector
-        mov word [interrupt_table + ecx * 8 + 4], %3    ; set type and attributes
-        shr eax, 16                                      
-        mov [interrupt_table + ecx * 8 + 6], ax         ; set handler address 16..31 bits
-
-        popa
-%endmacro
-
-timer_int_handler:
-        WRAPHANDLER timer_int
-
-keyboard_int_handler:
-        WRAPHANDLER keyboard_int
-
+;;; Handler for keyboard
+;;; Todo SHIFT support
 keyboard_int:
-        ;; TODO process scan-code to ASCII-code
-        ;; Shows some symbol
-        
+        xor eax, eax
         in al, 0x60
         push eax
         call get_from_scancode
@@ -76,8 +35,8 @@ keyboard_int:
 .exit:
         ret
 
+;;; Useless handler for timer interrupts
 timer_int:
-	;; Set some good color
 	mov ax, 'oo'
 	;; Load cool symbol
 	mov al, [timer_symbol]
@@ -123,18 +82,19 @@ init_interrupts:
         out PIC1_PORT2, al
         mov al, 0x01
         out PIC2_PORT2, al
-        
-        ;; Disable all IRQ for PIC2, PIC1
-        ;; Enable keyboard, timer for PIC1
-        mov al, ~MASTER_PIC_MASK
+
+        ;; Disable all for both master and slave PICs
+        mov al, 0x00
+        not al
         out PIC1_PORT2, al
-        mov al, ~SLAVE_PIC_MASK
         out PIC2_PORT2, al
 
-        ;; Set handler for timer interrupts
-        INITHANDLER timer_int_handler, IRQ_BASE, 0x8E00
-        ;; Set handler for keyboard interrupts
-        INITHANDLER keyboard_int_handler, IRQ_BASE + 1, 0x8E00
+        ;; Set handler for timer interrupts and enable them
+        ENABLE_MASTER_BIT 0x01
+        INITHANDLER timer_int, IRQ_BASE, 0x8E00
+        ;; Set handler for keyboard interrupts and enable them
+        ENABLE_MASTER_BIT 0x02
+        INITHANDLER keyboard_int, IRQ_BASE + 1, 0x8E00
 
         pop eax
         ;; Enable interrupts
@@ -143,9 +103,14 @@ init_interrupts:
 
 section .data
 interrupt_table:
-	times INTERRUPTS_TABLE_SIZE dd 0
+	times INTERRUPTS_TABLE_SIZE db 0
 .ptr:
         dw INTERRUPTS_TABLE_SIZE
         dd interrupt_table
 
-timer_symbol:	db 'a'
+interrupt_handlers:
+	times INTERRUPT_HANDLERS_SIZE db 0
+
+timer_symbol:	        db      'a'
+MASTER_PIC_MASK:        db     0x00
+SLAVE_PIC_MASK:         db     0x00
