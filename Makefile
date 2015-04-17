@@ -1,10 +1,10 @@
 -include Makefile.local
 
 export CC ?= gcc
-export CFLAGS = -m32 -Wall -Wextra -std=c99 -ffreestanding
+export CFLAGS = $(EXTRA_CFLAGS) -m32 -Wall -Wextra -std=c99 -ffreestanding
 
 export AS = yasm
-export ASFLAGS = -f elf32 -I $(shell pwd)
+export ASFLAGS = $(EXTRA_ASFLAGS) -f elf32 -I $(shell pwd)
 
 export LD = ld
 export LDFLAGS = -m elf_i386 -T res/linker.ld
