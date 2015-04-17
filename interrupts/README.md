@@ -3,9 +3,12 @@ ItmOS::interrupts
 
 Module for interrupt support.
 
+<i>All macros are in interrupts/interrupts.inc and interrupts/interrupts_extern.inc</i>
+
 Tutorial for adding interrupt handler:
 --------
-1. Write handler body(Ex. <i>timer_int</i>)
-2. Wrap it with <b>WRAPHANDLER</b> macro(saves registers, sends EOI(End Of Interrupt)). It's handler you need. (Ex. <i>timer_int_handler</i>)
-3. Fill appropriate element of IDT(Interrupt Descriptor Table) with <b>INITHANDLER</b> macro(takes interrupt number, handler address, [type](http://wiki.osdev.org/Interrupt_Descriptor_Table#Structure)).
-4. [Enable interrupt for PICs](http://www.xbdev.net/asm/protected_mode/tut_025/) if necessary([IRQs](http://en.wikipedia.org/wiki/Interrupt_request_%28PC_architecture%29)).
+1. Write handler body(Ex. <i>timer_int</i>).
+  You _DON'T_ need to save registers or send EOI(End of Interrupt). It is done by interrupt manager.
+2. Register interrupt handler with <b>INITHANDLER</b> macro(takes interrupt number, handler address, [type](http://wiki.osdev.org/Interrupt_Descriptor_Table#Structure)).
+3. Enable IRQ interrupt for PICs if necessary, using macros: <b>ENABLE_MASTER_BIT</b>, <b>DISABLE_MASTER_BIT</b>, <b>ENABLE_SLAVE_BIT</b>, <b>DISABLE_SLAVE_BIT</b>.
+  To find out bits to enable see table <i>"The 8259 programmable interrupt controller (PIC) chips"</i> [here](http://www.xbdev.net/asm/protected_mode/tut_025/).
