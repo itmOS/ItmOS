@@ -6,6 +6,7 @@
 extern log_ok
 extern log_err
 extern log_warn
+extern log_bochs_console
 
 %macro LOG_OK 1
 push %1
@@ -34,6 +35,15 @@ mov al, 10
 call tty_putc
 pop eax
 pop esi
+%endmacro
+
+%macro LOG_BOCHS_CONSOLE 1
+push eax
+mov eax, %1
+push eax
+call log_bochs_console
+add esp, 4
+pop eax
 %endmacro
 
 %endif ; UTIL_LOG_INC
