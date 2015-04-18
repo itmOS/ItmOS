@@ -3,6 +3,7 @@ global ata_wr_segs
 global ata_identify
 
 %include "tty/tty.inc"
+%include "util/macro.inc"
 %include "util/log/log.inc"
 
 ;;; Shitty implementation of ATA driver. Errors are handled, but nothing can be
@@ -133,6 +134,7 @@ ata_identify:
 	                                                                        ;; FIXME: qword must be here
 	je .no_lba48_support
 	LOG_OK ata_pio_lba48_supported
+	CCALL tty_printf, ata_pio_lba48_sectors, dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SECTORS]
 .no_lba48_support
 	cmp dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS], 0       ;; check if 60+61 words (taken as uint32_t)
 	je .no_lba28_support                                                    ;; is non-zero 
@@ -140,7 +142,7 @@ ata_identify:
 	                                                                        ;; sectors on the drive
 	                                                                        ;; you can find more information about this at
 	                                                                        ;; ATA8-Command-Set specification
-	                                                                        ;; TODO: print number of addreasable sectors
+	CCALL tty_printf, ata_pio_lba28_sectors, dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS]
 	jmp .return
 .no_lba28_support	 
 	LOG_ERR ata_pio_lba28_not_supported
@@ -299,11 +301,7 @@ ata_pio_lba28_rd_segs:
 	cmp al, ATA_OK
 	jne .failed
 
-	;push eax
-	;push ata_pio_status
-	;TTY_PRINTF
-	;pop eax
-	;pop eax
+	;CCALL tty_printf, ata_pio_status, eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
 	jne .failed
@@ -385,11 +383,7 @@ ata_pio_lba28_wr_segs:
 	in al, dx ; wow it's so cool
 	in al, dx
 
-	;push eax
-	;push ata_pio_status
-	;TTY_PRINTF
-	;pop eax
-	;pop eax
+	;CCALL tty_printf, ata_pio_status, eax
 
 	test al, ATA_ST_DF | ATA_ST_ERR
 	jne .failed
@@ -466,3 +460,6 @@ ata_pio_read_error:           db 'ATA_PIO: Read error', 0
 ata_pio_write_error:          db 'ATA_PIO: Write error', 0
 
 ata_pio_status:               db 'ATA_PIO: Status code %u', 10, 0
+
+ata_pio_lba28_sectors:        db 'ATA_PIO: %u sectors can be addressed by LBA28', 10, 0
+ata_pio_lba48_sectors:        db 'ATA_PIO: %u sectors can be addressed by LBA48', 10, 0
