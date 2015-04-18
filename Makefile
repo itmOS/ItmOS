@@ -31,6 +31,7 @@ ISO ?= kernel.iso
 OUTPUT_DIR ?= $(ISO_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
 SUBMODULES ?= boot kernel tty ata interrupts util dev
+GRUB_CONF ?= res/grub.cfg
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
 
@@ -46,7 +47,7 @@ run_qemu: $(ISO) $(HARD)
 
 $(ISO): $(KERNEL)
 		-mkdir -p $(ISO_ROOT)/boot/grub
-		cp res/grub.cfg $(ISO_ROOT)/boot/grub
+		cp $(GRUB_CONF) $(ISO_ROOT)/boot/grub
 		$(GRUB_MKRESCUE) -o $@ $(ISO_ROOT)
 
 $(HARD): $(KERNEL)
