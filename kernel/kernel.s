@@ -17,7 +17,6 @@ kernel_main:
 	call init_interrupts
         call logging_prelude
 
-	TEST_REGISTER_SINGLE testing, simple_test
         call ata_register_tests
         call string_register_tests
 	
@@ -35,25 +34,10 @@ kernel_main:
 
 logging_prelude:
 	LOG_SIMPLE prelude
-	LOG_SIMPLE test_messages
-	LOG_OK ok_message
-	LOG_ERR err_message
-	LOG_WARN warn_message
-	LOG_SIMPLE real_logging
-	ret
-
-simple_test:
-	;; This test checks nothing, should always pass
-	xor eax, eax
 	ret
 
 section .data
 prelude:	db '===== Booting ItmOS, be careful =====', 0
-test_messages:	db 'Writing test logging messages, please check the colors', 0
-ok_message:	db 'This is green and awesome', 0
-err_message: 	db 'This is red and awful', 0
-warn_message:   db 'This is yellow and scaring', 0
-real_logging:	db 10,'Writing real log messages, please check if everything is OK',0
 
 testing:	db 'KERNEL: Simple test',0
 
