@@ -47,7 +47,7 @@ run_qemu: $(ISO) $(HARD)
 
 $(ISO): $(KERNEL)
 		-mkdir -p $(ISO_ROOT)/boot/grub
-		cp $(GRUB_CONF) $(ISO_ROOT)/boot/grub
+		cp $(GRUB_CONF) $(ISO_ROOT)/boot/grub/grub.cfg
 		$(GRUB_MKRESCUE) -o $@ $(ISO_ROOT)
 
 $(HARD): $(KERNEL)
