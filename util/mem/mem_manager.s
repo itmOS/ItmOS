@@ -25,6 +25,17 @@ get_one_page:
 put_one_page:
         ret
 
+
+temp_map_page:
+        ret
+
+map_pages:
+        ret
+
+        
+get_page_info:  
+        ret
+
 ;;; Address of the first block
 begin_page:     dw 0
 ;;; Amount of free pages
