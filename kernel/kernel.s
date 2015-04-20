@@ -10,26 +10,30 @@ section .text
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
+extern mem_register_tests
+extern memory_map
 
 ;;; Entry point of the kernel.
 kernel_main:
 	mov esp, stack_top
+        CCALL tty_printf, memory_test, memory_map
+
 	call init_interrupts
         call logging_prelude
 
         call ata_register_tests
+        call mem_register_tests
         call string_register_tests
-	
-	ATA_IDENTIFY
+        ATA_IDENTIFY
 
-	TEST_RUN_ALL
-    push dword -80
-    push dword 70
-    push sprintf_test
-    CCALL tty_printf, sprintf_test, dword 70, dword -80
-    pop eax
-    pop eax
-    pop eax
+        TEST_RUN_ALL
+        push dword -80
+        push dword 70
+        push sprintf_test
+        CCALL tty_printf, sprintf_test, dword 70, dword -80
+        pop eax
+        pop eax
+        pop eax
 	jmp $
 
 logging_prelude:
@@ -40,6 +44,8 @@ section .data
 prelude:	db '===== Booting ItmOS, be careful =====', 0
 
 testing:	db 'KERNEL: Simple test',0
+
+memory_test:    db "%u", 10, 0
 
 sprintf_test: db 'TTY: %u test %d', 10, 0
 

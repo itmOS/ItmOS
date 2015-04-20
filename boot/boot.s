@@ -26,7 +26,9 @@ multiboot_header:
         dd CHECKSUM
 
 global _loader
+global memory_map
 _loader:
+        mov [memory_map], ebx
         ;; Disable interrupts
         cli
 
@@ -90,3 +92,5 @@ gdt32:
 .ptr:
         dw $ - gdt32 - 1
         dd (gdt32 - KERNEL_VMA)
+memory_map:
+        dw 0

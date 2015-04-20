@@ -1,6 +1,9 @@
 section .text
 
+extern memory_map
+
 init_mem_manager:
+
         ret
 
 ;;; Takes amount of pages and return address of memory block if given size
