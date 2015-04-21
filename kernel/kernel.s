@@ -10,6 +10,7 @@ section .text
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
+extern mmap_print
 
 ;;; Entry point of the kernel.
 kernel_main:
@@ -28,6 +29,7 @@ kernel_main:
     push dword 70
     push sprintf_test
     CCALL tty_printf, sprintf_test, dword 70, dword -80
+    call mmap_print
     pop eax
     pop eax
     pop eax
