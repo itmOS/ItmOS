@@ -6,35 +6,38 @@ section .text
 %include "util/log/log.inc"
 %include "util/test/test.inc"
 %include "interrupts/interrupts.inc"
+%include "multiboot/multiboot.inc"
 
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
 extern mem_register_tests
-extern memory_map
 extern init_mem_manager
 extern mmap_print
+extern begin_page
+extern page_count
 
 ;;; Entry point of the kernel.
 kernel_main:
         call init_mem_manager
 	mov esp, stack_top
-        CCALL tty_printf, memory_test, memory_map
+        CCALL tty_printf, memory_test, [begin_page]
+        CCALL tty_printf, memory_test, [page_count]
 	call init_interrupts
         call logging_prelude
-
         call ata_register_tests
         call mem_register_tests
         call string_register_tests
 	
-	ATA_IDENTIFY
+        ATA_IDENTIFY
+        xchg bx, bx
 
-	TEST_RUN_ALL
+        TEST_RUN_ALL
     	push dword -80
     	push dword 70
     	push sprintf_test
-    	CCALL tty_printf, sprintf_test, dword 70, dword -80
-    	call mmap_print
+        CCALL tty_printf, sprintf_test, dword 70, dword -80
+        ;;         call mmap_print
     	pop eax
     	pop eax
     	pop eax

@@ -1,28 +1,20 @@
 section .text
 
+%include "multiboot/multiboot.inc"
+%include "tty/tty.inc"
+%include "util/macro.inc"
+
 global page_count
 global begin_page
 global init_mem_manager
-extern memory_map
-
-;; Memory map structure fields:
-%define BOOTINFO_MMAP_BASEADDR(a) [a + 4] ; Base address of the region
-%define BOOTINFO_MMAP_LENGTH(a) [a + 12] ; Region length
-%define BOOTINFO_MMAP_TYPE(a) [a + 20] ; 1 for RAM, other for reserved
-
-;; Get next memory map structure
-%macro BOOTINFO_MMAP_NEXT 1
-        add %1, dword [%1]
-%endmacro
-
 
 init_mem_manager:
-        xchg bx, bx
         pusha
-        mov eax, [memory_map]
-        mov [begin_page], eax
+        BOOTINFO_GET_MMAP_ITER eax
+        mov dword [begin_page], eax
 .loop:
-        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
+        
+        mov ebx, BOOTINFO_MMAP_TYPE(eax)
         test ebx, ebx
         jz .exit
 
@@ -30,10 +22,8 @@ init_mem_manager:
         cmp ebx, 1
         jne .finish
 
-        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
-        cmp ebx, 0x100000
-        jl .finish
-
+	;; TODO check memory is over 1M
+        
         mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
         mov ecx, BOOTINFO_MMAP_LENGTH(eax)
         shl ecx, 12
@@ -44,10 +34,11 @@ init_mem_manager:
         pop ebx
 
         mov ecx, BOOTINFO_MMAP_LENGTH(eax)
-        add [page_count], ecx
+        add dword [page_count], ecx
 
 .finish:
         BOOTINFO_MMAP_NEXT eax
+        jmp .loop
 
 .exit:
         popa
@@ -88,6 +79,6 @@ get_page_info:
 
 
 ;;; Address of the first block
-begin_page:     dw 0
+begin_page:     dd 0
 ;;; Amount of free pages
-page_count:     dw 0
+page_count:     dd 0
