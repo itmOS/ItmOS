@@ -1,17 +1,22 @@
 extern bootinfo_addr
 
-;; Copy boot info to the safe place in .bss. Supposed to be used only once at some early boot
-;; stage.
-%macro BOOTINFO_LOAD %1
-mov edi, bootinfo_addr
-mov ecx, 45
-rep movsw %1, edi
+;; Load boot info address. Supposed to be done at some early boot stage.
+;; The boot info is not copied anywhere, hence it is better to process its content before
+;; performing memory manipulations.
+%macro BOOTINFO_LOAD 1
+mov dword [bootinfo_addr], %1
 %endmacro
+
+;; The loaded boot info address. Can be used to avoid overwriting it.
+%define BOOTINFO_LOCATION [bootinfo_addr]
 
 ;; Test whether some bootinfo part is provided.
 ;; Perform this before accessing the information you wanted!
-%macro BOOTINFO_TEST_FLAG %1
-test dword [bootinfo_addr], (1 << %1)
+%macro BOOTINFO_TEST_FLAG 1
+push eax
+mov eax, [bootinfo_addr]
+test dword [eax], (1 << %1)
+pop eax
 %endmacro
 
 ;; Feature numbers to be used by BOOTINFO_TEST_FLAG
@@ -29,26 +34,37 @@ BOOTINFO_APM equ 10
 BOOTINFO_VBE equ 11
 
 %macro BOOTINFO_LOAD_OFFSET 2
-mov %2, bootinfo_addr + %1
+mov %2, [bootinfo_addr]
+mov %2, [%2 + %1]
 %endmacro
 
-;; Lower memory bound in kb. Anything below this address may be used for DMA or something
-%define BOOTINFO_GET_MEMLOWER BOOTINFO_LOAD_OFFSET 4
+;; Lower memory bound in kb
+%macro BOOTINFO_GET_MEMLOWER 1
+BOOTINFO_LOAD_OFFSET 4, %1
+%endmacro
 
-;; The first upper memory address in bytes, relative to 1MB
-%define BOOTINFO_GET_MEMUPPER BOOTINFO_LOAD_OFFSET 8
+;; The upper memory amount in kb
+%macro BOOTINFO_GET_MEMUPPER 1
+BOOTINFO_LOAD_OFFSET 8, %1
+%endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                       Boot Device Info                         ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-%define BOOTINFO_GET_BOOTDEVICE BOOTINFO_LOAD_OFFSET 12
+%macro BOOTINFO_GET_BOOTDEVICE 1
+BOOTINFO_LOAD_OFFSET 12, %1
+%endmacro
 
 ;; Load boot device subsubpartition number (0xFF if invalid; see the specification)
-%define BOOTINFO_GET_BOOTDEV_SUBSUBPART BOOTINFO_GET_BOOTDEVICE
+%macro BOOTINFO_GET_BOOTDEV_SUBSUBPART 1
+BOOTINFO_GET_BOOTDEVICE %1
+%endmacro
 
 ;; Load boot device subpartition number (0xFF if invalid; see the specification)
-%define BOOTINFO_GET_BOOTDEV_SUBPART BOOTINFO_LOAD_OFFSET 13
+%macro BOOTINFO_GET_BOOTDEV_SUBPART 1 
+BOOTINFO_LOAD_OFFSET 13, %1
+%endmacro
 
 ;; Load boot device DOS partition number
 %define BOOTINFO_GET_BOOTDEV_DOSPART BOOTINFO_LOAD_OFFSET 14
@@ -77,7 +93,7 @@ mov %2, bootinfo_addr + %1
 %define BOOTINFO_MOD_NAME(a) = [a + 8] ; module name (C string)
 
 ;; Get next module structure
-%macro BOOTINFO_NEXT_MODULE %1
+%macro BOOTINFO_NEXT_MODULE 1
 add %1, 16
 %endmacro
 
@@ -91,20 +107,25 @@ add %1, 16
 ;;                 Memory map provided by BIOS                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Number of memory map structures
-%define BOOTINFO_GET_MMAP_LENGTH BOOTINFO_LOAD_OFFSET 44
+;; Memory map array length (in bytes, be careful)
+%macro BOOTINFO_GET_MMAP_LENGTH 1
+BOOTINFO_LOAD_OFFSET 44, %1
+%endmacro
 
 ;; The first memory map structure
-%define BOOTINFO_GET_MMAP_ITER BOOTINFO_LOAD_OFFSET 48
+%macro BOOTINFO_GET_MMAP_ITER 1
+BOOTINFO_LOAD_OFFSET 48, %1
+%endmacro
 
 ;; Memory map structure fields:
-%define BOOTINFO_MMAP_BASEADDR(a) [a + 4] ; Base address of the region
-%define BOOTINFO_MMAP_LENGTH(a) [a + 12]  ; Region length
-%define BOOTINFO_MMAP_TYPE(a) [a + 20]    ; 1 for RAM, other for reserved
+%define BOOTINFO_MMAP_BASEADDR(a) [a + 4]    ; Base address of the region (unsigned long long)
+%define BOOTINFO_MMAP_LENGTH(a) [a + 12]     ; Region length
+%define BOOTINFO_MMAP_TYPE(a) dword [a + 20] ; 1 for RAM, other for reserved
 
 ;; Get next memory map structure
-%macro BOOTINFO_MMAP_NEXT %1
+%macro BOOTINFO_MMAP_NEXT 1
 add %1, dword [%1]
+add %1, 4
 %endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -129,7 +150,7 @@ add %1, dword [%1]
 %define BOOTINFO_DRIVE_PORTS_NEXT(a) [a + 1]  ; Iterate through ports (effective address again)
 
 ;; Next drive structure
-%macro BOOTINFO_DRIVES_NEXT %1
+%macro BOOTINFO_DRIVES_NEXT 1
 add %1, dword [%1]
 %endmacro
 
@@ -141,9 +162,9 @@ add %1, dword [%1]
 ;; Boot loader name (C string)
 %define BOOTINFO_GET_BOOTLOADER_NAME BOOTINFO_LOAD_OFFSET 64
 
-;; APM table
-;; TODO maybe get to know something specific about it?
-%define BOOTINFO_GET_APM_TABLE
+;; Advanced Power Management table
+;; TODO maybe find out something specific about it?
+%define BOOTINFO_GET_APM_TABLE BOOTINFO_LOAD_OFFSET 68
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                          VBE Info                             ;;
@@ -152,7 +173,7 @@ add %1, dword [%1]
 ;; VBE control info
 %define BOOTINFO_GET_VBE_CONTROL BOOTINFO_LOAD_OFFSET 72
 
-;; VBE move info
+;; VBE mode info
 %define BOOTINFO_GET_VBE_MODEINFO BOOTINFO_LOAD_OFFSET 76
 
 ;; VBE mode (format specified in VBE 3.0 specification)

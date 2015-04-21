@@ -1,2 +1,4 @@
+global bootinfo_addr
+
 section .bss
-bootinfo_addr: resw 45
+bootinfo_addr: resd 1
