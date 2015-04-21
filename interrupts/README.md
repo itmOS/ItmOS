@@ -3,7 +3,7 @@ ItmOS::interrupts
 
 Module for interrupt support.
 
-<i>All macros are in interrupts/interrupts.inc and interrupts/interrupts_extern.inc</i>
+<i>All macros are in interrupts/interrupts.inc</i>
 
 Tutorial for adding interrupt handler:
 --------

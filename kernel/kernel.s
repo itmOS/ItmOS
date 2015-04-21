@@ -5,7 +5,7 @@ section .text
 %include "util/macro.inc"
 %include "util/log/log.inc"
 %include "util/test/test.inc"
-%include "interrupts/interrupts_extern.inc"
+%include "interrupts/interrupts.inc"
 
 global kernel_main
 extern ata_register_tests

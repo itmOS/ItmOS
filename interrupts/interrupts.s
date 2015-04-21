@@ -2,6 +2,7 @@ section .text
 
 %include "tty/tty.inc"
 %include "dev/kbd/kbd.inc"
+%include "interrupts_macro.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -11,8 +12,6 @@ global MASTER_PIC_MASK
 global SLAVE_PIC_MASK
 
 
-%include "tty/tty.inc"
-%include "interrupts.inc"
 
 ;;; Gets number of interrupt in eax and calls handler for it
 interrupt_manager:
