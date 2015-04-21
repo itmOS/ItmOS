@@ -57,7 +57,6 @@ _loader:
 	mov cr0, eax
 
 	;; Save boot info address
-	xchg bx, bx
 	BOOTINFO_LOAD ebx
 
 	;; Start fetching instructions in kernel space.

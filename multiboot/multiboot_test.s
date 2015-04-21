@@ -5,7 +5,6 @@ section .text
 
 global mmap_print
 mmap_print:
-    xchg bx, bx
     BOOTINFO_TEST_FLAG BOOTINFO_BIOS_MMAP
     jz .error
     push esi
