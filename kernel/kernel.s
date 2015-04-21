@@ -12,9 +12,11 @@ extern ata_register_tests
 extern string_register_tests
 extern mem_register_tests
 extern memory_map
+extern init_mem_manager
 
 ;;; Entry point of the kernel.
 kernel_main:
+        call init_mem_manager
 	mov esp, stack_top
         CCALL tty_printf, memory_test, memory_map
 

@@ -1,6 +1,8 @@
 section .text
 
 global page_count
+global begin_page
+global init_mem_manager
 extern memory_map
 
 ;; Memory map structure fields:
@@ -15,8 +17,10 @@ extern memory_map
 
 
 init_mem_manager:
+        xchg bx, bx
         pusha
         mov eax, [memory_map]
+        mov [begin_page], eax
 .loop:
         mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
         test ebx, ebx

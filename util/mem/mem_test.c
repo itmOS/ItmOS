@@ -1,11 +1,12 @@
 
 void test_register_single(char* name, int (*body)(void));
-unsigned int memory_map;
+unsigned int begin_page;
 unsigned int page_count;
+unsigned int memory_map;
 
 
 int test_mem_map_loaded(void) {
-	if (memory_map != 0)
+	if (begin_page != 0)
 		return 0;
 	else
 		return -1;
