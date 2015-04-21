@@ -14,6 +14,7 @@ extern string_register_tests
 ;;; Entry point of the kernel.
 kernel_main:
 	mov esp, stack_top
+
 	call init_interrupts
         call logging_prelude
 
