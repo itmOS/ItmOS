@@ -12,6 +12,9 @@ BASE_M          equ 0x100000
 
 init_mem_manager:
         pusha
+        mov eax, cr3
+        mov [kernel_page_dir], eax
+        
         BOOTINFO_GET_MMAP_ITER eax
         mov dword [begin_page], eax
 .loop:
@@ -28,14 +31,9 @@ init_mem_manager:
         cmp ebx, BASE_M
         jl .finish
         
-        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
         mov ecx, BOOTINFO_MMAP_LENGTH(eax)
-        shl ecx, 12
-        push ebx
-        push ecx
-        call put_pages
-        pop ecx
-        pop ebx
+        shr ecx, 12
+        CCALL put_pages, BOOTINFO_MMAP_BASEADDR(eax), ecx
 
         mov ecx, BOOTINFO_MMAP_LENGTH(eax)
         add dword [page_count], ecx
@@ -83,6 +81,7 @@ get_page_info:
 
 
 ;;; Address of the first block
-begin_page:     dd 0
+begin_page:             dd 0
 ;;; Amount of free pages
-page_count:     dd 0
+page_count:             dd 0
+kernel_page_dir:        dd 0
