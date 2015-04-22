@@ -25,11 +25,11 @@ kernel_main:
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
+    call mmap_print
     push dword -80
     push dword 70
     push sprintf_test
     CCALL tty_printf, sprintf_test, dword 70, dword -80
-    call mmap_print
     pop eax
     pop eax
     pop eax

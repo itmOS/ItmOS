@@ -119,7 +119,7 @@ BOOTINFO_LOAD_OFFSET 48, %1
 
 ;; Memory map structure fields:
 %define BOOTINFO_MMAP_BASEADDR(a) [a + 4]    ; Base address of the region (unsigned long long)
-%define BOOTINFO_MMAP_LENGTH(a) [a + 12]     ; Region length
+%define BOOTINFO_MMAP_LENGTH(a) [a + 12]     ; Region length (unsigned long long)
 %define BOOTINFO_MMAP_TYPE(a) dword [a + 20] ; 1 for RAM, other for reserved
 
 ;; Get next memory map structure

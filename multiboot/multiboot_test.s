@@ -19,10 +19,13 @@ mmap_print:
     cmp esi, ebx ; Check whether we are beyond the array already
     jge .exit
     inc edx
-    mov eax, BOOTINFO_MMAP_LENGTH(esi)   ; Get range length from entry pointer
+    lea ecx, BOOTINFO_MMAP_LENGTH(esi)   ; Get range length from entry pointer
+    mov eax, [ecx + 4]                   ; (it is long long, should be pushed in 2 parts)
+    push eax
+    mov eax, [ecx]
     push eax
     lea ecx, BOOTINFO_MMAP_BASEADDR(esi) ; Get base address from entry pointer
-    mov eax, [ecx + 4]                   ; (it is long long, should be pushed in 2 parts)
+    mov eax, [ecx + 4]                   ; (once again, long long)
     push eax
     mov eax, [ecx]
     push eax
@@ -30,7 +33,7 @@ mmap_print:
     push mmap_reg
     TTY_PRINTF
     mov edx, [esp + 4] ; restore the entry number from stack
-    add esp, 20
+    add esp, 24
     cmp BOOTINFO_MMAP_TYPE(esi), 1 ; Test whether an entry type is RAM
     jne .reserved                  ; (also may be reserved for a device, see Detecting Memory on osdev.org)
     TTY_PUTS mmap_ram
@@ -55,7 +58,7 @@ mmap_inv: db 'Memory map info unavailable, check boot header', 10, 0
 mmap_cnt: db 'Total memory map regions: %d', 10, 0
 mmap_reg: db 'Map region %d:', 10
           db '    base address %llu', 10
-          db '    length       %u', 10
+          db '    length       %llu', 10
           db '    type         ', 0
 mmap_ram: db 'RAM', 10, 0
 mmap_res: db 'reserved', 10, 0
