@@ -8,6 +8,8 @@ global page_count
 global begin_page
 global init_mem_manager
 
+BASE_M          equ 0x100000
+
 init_mem_manager:
         pusha
         BOOTINFO_GET_MMAP_ITER eax
@@ -22,7 +24,9 @@ init_mem_manager:
         cmp ebx, 1
         jne .finish
 
-	;; TODO check memory is over 1M
+        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
+        cmp ebx, BASE_M
+        jl .finish
         
         mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
         mov ecx, BOOTINFO_MMAP_LENGTH(eax)
