@@ -132,22 +132,26 @@ add %1, 4
 ;;                   Available disk drives                       ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Number of drive structures
-%define BOOTINFO_GET_DRIVES_LENGTH BOOTINFO_LOAD_OFFSET 52
+;; Size of the drive structures array (in bytes)
+%macro BOOTINFO_GET_DRIVES_LENGTH 1
+BOOTINFO_LOAD_OFFSET 52, %1
+%endmacro
 
 ;; The first drive structure
-%define BOOTINFO_GET_DRIVES_ITER BOOTINFO_LOAD_OFFSET 56
+%macro BOOTINFO_GET_DRIVES_ITER 1
+BOOTINFO_LOAD_OFFSET 56, %1
+%endmacro
 
 ;; Drive structure fields:
-%define BOOTINFO_DRIVE_NUMBER(a) [a + 4]
-%define BOOTINFO_DRIVE_MODE(a) [a + 5]
+%define BOOTINFO_DRIVE_NUMBER(a) [a + 4]    ; BIOS drive number
+%define BOOTINFO_DRIVE_MODE(a) [a + 5]      ; 0 for CHS, 1 for LBA
 %define BOOTINFO_DRIVE_CYLINDERS(a) [a + 6]
 %define BOOTINFO_DRIVE_HEADS(a) [a + 8]
 %define BOOTINFO_DRIVE_SECTORS(a) [a + 9]
 
 ;; Drive IO ports (a null-terminated list)
 %define BOOTINFO_DRIVE_PORTS_ITER(a) [a + 10] ; Effective address of the first port entry
-%define BOOTINFO_DRIVE_PORTS_NEXT(a) [a + 1]  ; Iterate through ports (effective address again)
+%define BOOTINFO_DRIVE_PORTS_NEXT(a) [a + 2]  ; Iterate through ports (effective address again)
 
 ;; Next drive structure
 %macro BOOTINFO_DRIVES_NEXT 1
