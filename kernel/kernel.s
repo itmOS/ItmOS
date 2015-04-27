@@ -15,21 +15,21 @@ extern string_register_tests
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
-        call logging_prelude
+	call logging_prelude
 
-        call ata_register_tests
-        call string_register_tests
+	call ata_register_tests
+	call string_register_tests
 	
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
-    push dword -80
-    push dword 70
-    push sprintf_test
-    CCALL tty_printf, sprintf_test, dword 70, dword -80
-    pop eax
-    pop eax
-    pop eax
+	push dword -80
+	push dword 70
+	push sprintf_test
+	CCALL tty_printf, sprintf_test, dword 70, dword -80
+	pop eax
+	pop eax
+	pop eax
 	jmp $
 
 logging_prelude:
@@ -49,5 +49,5 @@ lba: dd 200
 
 section .bss
 stack:
-        resd 0x1000
+		resd 0x1000
 stack_top:
