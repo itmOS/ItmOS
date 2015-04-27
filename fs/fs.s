@@ -1,5 +1,19 @@
 ;; Dummy non-working implementation of the FAT16 FS
 
+%include "ata/ata.inc"
+
+
+section .data
+    fat: dq 40*512
+
+section .text
+
+;; void fat_init();
+;; initializes the file system
+fat_init:
+    ret
+
+
 ;; int fat_open_ro(char* path)
 ;; gets the path of a file and returns an unique id to read it (or -1 if not found)
 fat_open:
