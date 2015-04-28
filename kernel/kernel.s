@@ -10,6 +10,7 @@ section .text
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
+extern fs_register_tests
 extern mmap_print
 
 ;;; Entry point of the kernel.
@@ -21,6 +22,7 @@ kernel_main:
 
         call ata_register_tests
         call string_register_tests
+        call fs_register_tests
 	
 	ATA_IDENTIFY
 
