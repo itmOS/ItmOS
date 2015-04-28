@@ -12,7 +12,7 @@ int is_fat16(void) {
     fat_init();
     char buf[10500]; // why not lol
     char* src = get_bootrecord() + 54;
-    i_strcpy(buf, src);
+    i_strcpy(buf, src); // FIXME use memcpy instead
     buf[5] = 0;
     return i_strcmp(buf, "FAT16");
 }
