@@ -9,15 +9,13 @@ int zero(void) {
     return 0;
 }
 int is_fat16(void) {
-    char buf[100500]; // why not lol
-    char* src = get_bootrecord();// + 54;
-    /*
+    fat_init();
+    char buf[10500]; // why not lol
+    char* src = get_bootrecord() + 54;
     i_strcpy(buf, src);
     buf[5] = 0;
     return i_strcmp(buf, "FAT16");
-    */
-    return 0;
 }
 void fs_register_tests(void) {
-    test_register_single("FAT: wow such test", &is_fat16);
+    test_register_single("FAT: FS is FAT16", &is_fat16);
 }
