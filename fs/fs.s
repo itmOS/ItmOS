@@ -1,17 +1,31 @@
 ;; Dummy non-working implementation of the FAT16 FS
 
 %include "ata/ata.inc"
+%include "util/log/log.inc"
+global get_bootrecord
+global fat_init
 
 
 section .data
     fat: dq 40*512
+    bootrecord: dq 512
 
 section .text
 
 ;; void fat_init();
 ;; initializes the file system
 fat_init:
+    ATA_INSEG 0, 1, bootrecord
+    lea eax, [bootrecord + 54]
+    LOG_SIMPLE eax
     ret
+
+;; void* get_bootrecord()
+;; for debugging purposes only
+get_bootrecord:
+    xor eax, eax
+    ret ; sooq rabotay bljad
+    ;mov eax, bootrecord
 
 
 ;; int fat_open_ro(char* path)

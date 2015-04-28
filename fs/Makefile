@@ -1,5 +1,5 @@
 OUTPUT = fs.a
-OBJ = fs.o
+OBJ = fs.o fs_test.o
 
 all: $(OUTPUT)
 
