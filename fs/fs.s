@@ -16,16 +16,16 @@ section .text
 ;; initializes the file system
 fat_init:
     ATA_INSEG 0, 1, bootrecord
-    lea eax, [bootrecord + 54]
-    LOG_SIMPLE eax
+    ; lea eax, [bootrecord + 54]
+    ; LOG_SIMPLE eax
     ret
 
 ;; void* get_bootrecord()
 ;; for debugging purposes only
 get_bootrecord:
     xor eax, eax
+    mov eax, bootrecord
     ret ; sooq rabotay bljad
-    ;mov eax, bootrecord
 
 
 ;; int fat_open_ro(char* path)
