@@ -1,3 +1,6 @@
+%ifndef BOOTINFO_INC
+%define BOOTINFO_INC
+
 extern bootinfo_addr
 
 ;; Load boot info address. Supposed to be done at some early boot stage.
@@ -67,25 +70,35 @@ BOOTINFO_LOAD_OFFSET 13, %1
 %endmacro
 
 ;; Load boot device DOS partition number
-%define BOOTINFO_GET_BOOTDEV_DOSPART BOOTINFO_LOAD_OFFSET 14
+%macro BOOTINFO_GET_BOOTDEV_DOSPART 1
+BOOTINFO_LOAD_OFFSET 14, %1
+%endmacro
 
 ;; Load boot device BIOS number (returned by INT 0x13 in real mode; see the specification)
-%define BOOTINFO_GET_BOOTDEV_BIOSNUM BOOTINFO_LOAD_OFFSET 15
+%macro BOOTINFO_GET_BOOTDEV_BIOSNUM 1
+BOOTINFO_LOAD_OFFSET 15, %1
+%endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Load address of a kernel cmdline (C string)
-%define BOOTINFO_GET_CMDLINE BOOTINFO_LOAD_OFFSET 16
+%macro BOOTINFO_GET_CMDLINE 1
+BOOTINFO_LOAD_OFFSET 16, %1
+%endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                   Operating system modules                    ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Load the modules count
-%define BOOTINFO_GET_MODS_COUNT BOOTINFO_LOAD_OFFSET 20
+%macro BOOTINFO_GET_MODS_COUNT 1
+BOOTINFO_LOAD_OFFSET 20, %1
+%endmacro
 
 ;; Load the first module struct pointer
-%define BOOTINFO_GET_MODS_ITER BOOTINFO_LOAD_OFFSET 24
+%macro BOOTINFO_GET_MODS_ITER 1
+BOOTINFO_LOAD_OFFSET 24, %1
+%endmacro
 
 ;; Module structure fields:
 %define BOOTINFO_MOD_START(a) = [a]    ; start address
@@ -161,14 +174,20 @@ add %1, dword [%1]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; BIOS configuration table (retrieved by GET CONFIGURATION real mode call)
-%define BOOTINFO_GET_BIOS_CONFTABLE BOOTINFO_LOAD_OFFSET 60
+%macro BOOTINFO_GET_BIOS_CONFTABLE 1
+BOOTINFO_LOAD_OFFSET 60, %1
+%endmacro
 
 ;; Boot loader name (C string)
-%define BOOTINFO_GET_BOOTLOADER_NAME BOOTINFO_LOAD_OFFSET 64
+%macro BOOTINFO_GET_BOOTLOADER_NAME 1
+BOOTINFO_LOAD_OFFSET 64, %1
+%endmacro
 
 ;; Advanced Power Management table
 ;; TODO maybe find out something specific about it?
-%define BOOTINFO_GET_APM_TABLE BOOTINFO_LOAD_OFFSET 68
+%macro BOOTINFO_GET_APM_TABLE 1
+BOOTINFO_LOAD_OFFSET 68, %1
+%endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                          VBE Info                             ;;
@@ -183,7 +202,17 @@ add %1, dword [%1]
 ;; VBE mode (format specified in VBE 3.0 specification)
 %define BOOTINFO_GET_VBE_MODE BOOTINFO_LOAD_OFFSET 80
 
-;; VBE 2.0+ interface (VBE 3.0 not supported)
-%define BOOTINFO_GET_VBE_INTERFACE_SEG BOOTINFO_LOAD_OFFSET 82
-%define BOOTINFO_GET_VBE_INTERFACE_OFFSET BOOTINFO_LOAD_OFFSET 84
-%define BOOTINFO_GET_VBE_INTERFACE_LENGTH BOOTINFO_LOAD_OFFSET 86
+;; VBE 2.0+ protected mode interface (VBE 3.0 not supported)
+%macro BOOTINFO_GET_VBE_INTERFACE_SEG 1
+BOOTINFO_LOAD_OFFSET 82, %1
+%endmacro
+
+%macro BOOTINFO_GET_VBE_INTERFACE_OFFSET 1 
+BOOTINFO_LOAD_OFFSET 84, %1
+%endmacro
+
+%macro BOOTINFO_GET_VBE_INTERFACE_LENGTH 1
+BOOTINFO_LOAD_OFFSET 86, %1
+%endmacro
+
+%endif
