@@ -27,7 +27,7 @@ kernel_main:
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
-    call mmap_print
+    ;call mmap_print
     push dword -80
     push dword 70
     push sprintf_test

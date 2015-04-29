@@ -50,24 +50,29 @@ endstruc
 
 section .rodata
     format: db "n: %d", 10, 0
-    fat_identify_format: db "bytes per sector: %d; per cluster: %d; reserved: %d; copies: %d; sectors per fat: %d", 10, 0
+    string: db "%s", 10, 0
+    fat_identify_format: db "bytes per sector: %d", 10, "sectors per cluster: %d", 10, "sectors reserved: %d", 10, "sectors total: %d", 10, "copies of FAT: %d", 10, "sectors per FAT: %d", 10, 0
 
 section .data
     ;fat: dq 40*512
-    bootrecord: dq 512
+    bootrecord: db boot_record_size
     dirtable: dq 512 ; hz if it’s enough
 
 
 section .text
-fat_identify:
 
+;; just prints some information about the file system
+fat_identify:
     xor eax, eax
     mov ax, [bootrecord + boot_record.sectors_per_fat]
-    push eax
     push eax
 
     xor eax, eax
     mov al, [bootrecord + boot_record.fat_copies]
+    push eax
+
+    xor eax, eax
+    mov ax, [bootrecord + boot_record.sectors_total]
     push eax
 
     xor eax, eax
@@ -81,6 +86,7 @@ fat_identify:
     xor eax, eax
     mov ax, [bootrecord + boot_record.bytes_per_sector]
     push eax
+
     push fat_identify_format
     call tty_printf
     add esp, 28
@@ -102,15 +108,25 @@ fat_init:
     add eax, ecx                ; eax += sectors_reserved
     xor ecx, ecx
     mov cx, [bootrecord + boot_record.bytes_per_sector]
-    mul ecx
+    ;mul ecx
     ; eax is now the directory table offset
+    ATA_INSEG eax, 1, dirtable  ; FIXME replace 1 with something normal
+
+    TTY_PUTS dirtable + file_entry.name
+    mov eax, [dirtable + file_entry.file_size]
+
+    push eax
+    push format
+    call tty_printf
+    add esp, 8
+    TTY_PUTS dirtable + file_entry.name + file_entry_size
+    mov eax, [dirtable + file_entry.file_size + file_entry_size]
 
     push eax
     push format
     call tty_printf
     add esp, 8
 
-    ;ATA_INSEG eax, sectors_per_fat, fat
     ret
 
 ;; void* get_bootrecord()
