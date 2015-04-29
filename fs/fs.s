@@ -14,13 +14,13 @@ struc boot_record
     .sectors_reserved:    resw 1
     .fat_copies:          resb 1
     .root_entries:        resw 1
-    .sectors_total:       resw 1
+    .sectors_total:       resw 1      ; used if Daniyar lolka pizdos
     .media_type:          resb 1
     .sectors_per_fat:     resw 1
     .sectors_per_track:   resw 1
     .head_side_count:     resw 1
     .sectors_hidden:      resd 1
-    .sectors_total_32:    resd 1
+    .sectors_total_32:    resd 1      ; used if the volume size if bigger than 32M
     .partition_number:    resw 1
     .extended_signature:  resb 1
     .serial_number:       resd 1
@@ -108,7 +108,7 @@ fat_init:
     mov cx, [bootrecord + boot_record.bytes_per_sector]
     ;mul ecx
     ; eax is now the directory table offset
-    ATA_INSEG eax, 1, dirtable  ; FIXME replace 1 with something reasonable
+    ; ATA_INSEG eax, 1, dirtable  ; FIXME replace 1 with something reasonable
 
     TTY_PUTS dirtable + file_entry.name
     mov eax, [dirtable + file_entry.file_size]
