@@ -92,18 +92,6 @@ fat_identify:
     add esp, 28
     ret
 
-global get_bootrecord
-global fat_init
-
-
-section .data
-    fat: dq 40*512
-    bootrecord: dq 512
-
-section .text
-
-;; void fat_init();
-;; initializes the file system
 fat_init:
     ATA_INSEG 0, 1, bootrecord
     call fat_identify
@@ -120,7 +108,7 @@ fat_init:
     mov cx, [bootrecord + boot_record.bytes_per_sector]
     ;mul ecx
     ; eax is now the directory table offset
-    ATA_INSEG eax, 1, dirtable  ; FIXME replace 1 with something normal
+    ATA_INSEG eax, 1, dirtable  ; FIXME replace 1 with something reasonable
 
     TTY_PUTS dirtable + file_entry.name
     mov eax, [dirtable + file_entry.file_size]
@@ -136,9 +124,8 @@ fat_init:
     push format
     call tty_printf
     add esp, 8
+    TTY_PUTS bootrecord + boot_record.fat_name
 
-    ; lea eax, [bootrecord + 54]
-    ; LOG_SIMPLE eax
     ret
 
 ;; void* get_bootrecord()
