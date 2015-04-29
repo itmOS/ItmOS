@@ -92,6 +92,16 @@ fat_identify:
     add esp, 28
     ret
 
+global get_bootrecord
+global fat_init
+
+
+section .data
+    fat: dq 40*512
+    bootrecord: dq 512
+
+section .text
+
 ;; void fat_init();
 ;; initializes the file system
 fat_init:
@@ -127,18 +137,18 @@ fat_init:
     call tty_printf
     add esp, 8
 
+    ; lea eax, [bootrecord + 54]
+    ; LOG_SIMPLE eax
     ret
 
 ;; void* get_bootrecord()
 ;; for debugging purposes only
 get_bootrecord:
-    xor eax, eax
     mov eax, bootrecord
     ret
 
-
 ;; int fat_open_ro(char* path)
-;; gets the path of a file and returns a unique id to read it (or -1 if not found)
+;; gets the path of a file and returns an unique id to read it (or -1 if not found)
 fat_open:
     mov eax, -1
     ret
