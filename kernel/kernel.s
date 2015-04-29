@@ -15,18 +15,18 @@ extern mmap_print
 
 ;;; Entry point of the kernel.
 kernel_main:
-	mov esp, stack_top
+    mov esp, stack_top
 
-	call init_interrupts
-        call logging_prelude
+    call init_interrupts
+    call logging_prelude
 
-        call ata_register_tests
-        call string_register_tests
-        call fs_register_tests
-	
-	ATA_IDENTIFY
+    call ata_register_tests
+    call string_register_tests
+    call fs_register_tests
 
-	TEST_RUN_ALL
+    ATA_IDENTIFY
+
+    TEST_RUN_ALL
     ;call mmap_print
     push dword -80
     push dword 70
@@ -35,16 +35,16 @@ kernel_main:
     pop eax
     pop eax
     pop eax
-	jmp $
+    jmp $
 
 logging_prelude:
-	LOG_SIMPLE prelude
-	ret
+    LOG_SIMPLE prelude
+    ret
 
 section .data
-prelude:	db '===== Booting ItmOS, be careful =====', 0
+prelude:    db '===== Booting ItmOS, be careful =====', 0
 
-testing:	db 'KERNEL: Simple test',0
+testing:    db 'KERNEL: Simple test',0
 
 sprintf_test: db 'TTY: %u test %d', 10, 0
 
