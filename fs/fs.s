@@ -1,4 +1,4 @@
-;; Dummy non-working implementation of the FAT16 FS
+;;; Dummy, non-working implementation of the FAT16 FS without long names
 
 %include "ata/ata.inc"
 %include "util/log/log.inc"
@@ -40,8 +40,8 @@ struc file_entry
     .create_time: resw 1
     .create_date: resw 1
     .access_date: resw 1
-    .start_high:  resw 1 ; the high 16 bits of the first cluster
-                         ; supposed to be 0 for FAT16
+    .start_high:  resw 1 ;; the high 16 bits of the first cluster
+                         ;; supposed to be 0 for FAT16
     .modify_time: resw 1
     .modify_date: resw 1
     .start:       resw 1
@@ -61,7 +61,7 @@ section .data
 
 section .text
 
-;; just prints some information about the file system
+;;; Just prints some information about the file system
 fat_identify:
     xor eax, eax
     mov ax, [bootrecord + boot_record.sectors_per_fat]
@@ -92,6 +92,7 @@ fat_identify:
     add esp, 28
     ret
 
+;;; Undocumented function mda
 fat_init:
     ATA_INSEG 0, 1, bootrecord
     call fat_identify
@@ -128,33 +129,34 @@ fat_init:
 
     ret
 
-;; void* get_bootrecord()
-;; for debugging purposes only
+;;; void* get_bootrecord()
+;;; For debug purposes only
 get_bootrecord:
     mov eax, bootrecord
     ret
 
-;; int fat_open_ro(char* path)
-;; gets the path of a file and returns an unique id to read it (or -1 if not found)
+;;; int fat_open_ro(char* path)
+;;; Gets the path of a file and returns an unique id to read it (or -1 if not found)
 fat_open:
     mov eax, -1
     ret
 
-;; size_t fat_file_size(int fid)
-;; returns the size (in bytes) of the given file
+;;; size_t fat_file_size(int fid)
+;;; Returns the size (in bytes) of the given file
 fat_file_size:
     xor eax, eax
     ret
 
-;; ssize_t fat_read(int fid, size_t offset, void* buf, size_t count)
-;; tries to read count bytes from the file with the given id at the given offset
-;; and returns the number of bytes read
+;;; ssize_t fat_read(int fid, size_t offset, void* buf, size_t count)
+;;; Tries to read count bytes from the file with the given id at the given offset
+;;; and returns the number of bytes read
 fat_read:
     xor eax, eax
     ret
-;; ssize_t fat_write(int fid, size_t offset, void* buf, size_t count)
-;; tries to write count bytes to the file with the given id at the given offset
-;; and returns the number of bytes written
+
+;;; ssize_t fat_write(int fid, size_t offset, void* buf, size_t count)
+;;; Tries to write count bytes to the file with the given id at the given offset
+;;; and returns the number of bytes written
 fat_write:
     xor eax, eax
     ret
