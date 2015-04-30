@@ -5,7 +5,15 @@
 
 global get_bootrecord
 global fat_init
+global fat_read
 
+%macro PRINT_NUM 1
+    push %1
+    push format
+    call tty_printf
+    add esp, 4
+    pop %1
+%endmacro
 struc boot_record
     .bootjmp:             resb 3
     .oem_name:            resb 8
@@ -14,7 +22,7 @@ struc boot_record
     .sectors_reserved:    resw 1
     .fat_copies:          resb 1
     .root_entries:        resw 1
-    .sectors_total:       resw 1      ; used if Daniyar lolka pizdos
+    .sectors_total:       resw 1      ; used if the volume size is not bigger than 32M
     .media_type:          resb 1
     .sectors_per_fat:     resw 1
     .sectors_per_track:   resw 1
@@ -27,7 +35,7 @@ struc boot_record
     .volume_name:         resb 11
     .fat_name:            resb 8
     .executable_codes:    resb 448
-    .marker:              resb 2 ; 0x55AA
+    .marker:              resb 2      ; 0x55AA
 endstruc
 
 
@@ -50,13 +58,14 @@ endstruc
 
 section .rodata
     format: db "n: %d", 10, 0
-    string: db "%s", 10, 0
-    fat_identify_format: db "bytes per sector: %d", 10, "sectors per cluster: %d", 10, "sectors reserved: %d", 10, "sectors total: %d", 10, "copies of FAT: %d", 10, "sectors per FAT: %d", 10, 0
+    endl: db 10, 0
+    fat_identify_format: db "bytes per sector: %d", 10, "sectors per cluster: %d", 10, "sectors reserved: %d", 10, "root entries: %d", 10, "sectors total: %d", 10, "copies of FAT: %d", 10, "sectors per FAT: %d", 10, 0
 
 section .data
-    ;fat: dq 40*512
-    bootrecord: db boot_record_size
-    dirtable: dq 512 ; hz if it’s enough
+    my_cool_heap: resb 8192
+    fat: resq 400*512
+    bootrecord: resb boot_record_size
+    dirtable: resq 32*512 ; hz if it’s enough
 
 
 section .text
@@ -76,6 +85,10 @@ fat_identify:
     push eax
 
     xor eax, eax
+    mov ax, [bootrecord + boot_record.root_entries]
+    push eax
+
+    xor eax, eax
     mov ax, [bootrecord + boot_record.sectors_reserved]
     push eax
 
@@ -89,12 +102,13 @@ fat_identify:
 
     push fat_identify_format
     call tty_printf
-    add esp, 28
+    add esp, 32
     ret
 
-;;; Undocumented function mda
+;;; void fat_init();
+;;; Initializes the file system
 fat_init:
-    ATA_INSEG 0, 1, bootrecord
+    ATA_INSEG 0, 1, bootrecord  ; load the boot record
     call fat_identify
 
     xor eax, eax
@@ -105,11 +119,17 @@ fat_init:
     xor ecx, ecx
     mov cx, [bootrecord + boot_record.sectors_reserved]
     add eax, ecx                ; eax += sectors_reserved
-    xor ecx, ecx
-    mov cx, [bootrecord + boot_record.bytes_per_sector]
-    ;mul ecx
     ; eax is now the directory table offset
-    ; ATA_INSEG eax, 1, dirtable  ; FIXME replace 1 with something reasonable
+
+    ; load the directory table
+    ATA_INSEG eax, 32, dirtable  ; not sure if 32 is the right number, but seems so
+
+    xor esi, esi
+    mov si, [bootrecord + boot_record.sectors_reserved]
+    xor edx, edx
+    mov dx, [bootrecord + boot_record.sectors_per_fat]
+    ;load the FAT
+    ATA_INSEG esi, edx, fat
 
     TTY_PUTS dirtable + file_entry.name
     mov eax, [dirtable + file_entry.file_size]
@@ -121,11 +141,14 @@ fat_init:
     TTY_PUTS dirtable + file_entry.name + file_entry_size
     mov eax, [dirtable + file_entry.file_size + file_entry_size]
 
-    push eax
-    push format
-    call tty_printf
+    PRINT_NUM eax
+
+
+    push my_cool_heap
+    push dword 0
+    call fat_read
     add esp, 8
-    TTY_PUTS bootrecord + boot_record.fat_name
+    TTY_PUTS my_cool_heap
 
     ret
 
@@ -136,7 +159,7 @@ get_bootrecord:
     ret
 
 ;;; int fat_open_ro(char* path)
-;;; Gets the path of a file and returns an unique id to read it (or -1 if not found)
+;;; Gets the path of a file and returns a unique id to read it (or -1 if not found)
 fat_open:
     mov eax, -1
     ret
@@ -144,14 +167,63 @@ fat_open:
 ;;; size_t fat_file_size(int fid)
 ;;; Returns the size (in bytes) of the given file
 fat_file_size:
-    xor eax, eax
+    mov edx, [esp + 4]
+    mov eax, [edx + file_entry.file_size]
     ret
 
-;;; ssize_t fat_read(int fid, size_t offset, void* buf, size_t count)
+;;; ssize_t fat_read(int fid, void* dest)
 ;;; Tries to read count bytes from the file with the given id at the given offset
 ;;; and returns the number of bytes read
 fat_read:
-    xor eax, eax
+    push ebp
+    mov  ebp, esp
+    push ebx
+    push edi
+    push esi
+    mov  ebx, 512
+    xor  ecx, ecx
+    xor  edx, edx
+    mov  edi, [ebp + 12]
+    mov  ecx, [ebp + 8]
+        push ecx
+        PRINT_NUM ecx
+        pop ecx
+        push ecx
+        PRINT_NUM ecx
+        pop ecx
+    xor  esi, esi
+    mov  si,  [dirtable + file_entry.start] ; the first cluster of the file
+    ; ^ ecx nado pribavit
+    xor  ecx, ecx
+    mov  cl,  [bootrecord + boot_record.sectors_per_cluster]
+    .loop
+        cmp  esi, 65535
+        je  .end
+        mov  eax, esi
+        mul  ecx
+        push ecx
+        push edi
+        ATA_INSEG eax, ecx, edi
+        pop edi
+        pop ecx
+        mov  eax, ecx
+        mul  ebx
+        add  edi, eax
+        xor  edx, edx
+        mov  dx, si
+        shl  edx, 1
+        mov  si, [fat + edx]
+        push ecx
+        PRINT_NUM esi
+        pop ecx
+        jmp  .loop
+    .end
+    pop esi
+    pop edi
+    pop ebx
+    TTY_PUTS [ebp + 12]
+    mov esp, ebp
+    pop ebp
     ret
 
 ;;; ssize_t fat_write(int fid, size_t offset, void* buf, size_t count)
