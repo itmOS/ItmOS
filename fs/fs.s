@@ -28,7 +28,7 @@ struc boot_record
     .sectors_per_track:   resw 1
     .head_side_count:     resw 1
     .sectors_hidden:      resd 1
-    .sectors_total_32:    resd 1      ; used if the volume size if bigger than 32M
+    .sectors_total_32:    resd 1      ; used if the volume size is bigger than 32M
     .partition_number:    resw 1
     .extended_signature:  resb 1
     .serial_number:       resd 1
@@ -62,10 +62,11 @@ section .rodata
     fat_identify_format: db "bytes per sector: %d", 10, "sectors per cluster: %d", 10, "sectors reserved: %d", 10, "root entries: %d", 10, "sectors total: %d", 10, "copies of FAT: %d", 10, "sectors per FAT: %d", 10, 0
 
 section .data
-    my_cool_heap: resb 8192
+    my_cool_heap: resq 8192
     fat: resq 400*512
     bootrecord: resb boot_record_size
     dirtable: resq 32*512 ; hz if it’s enough
+    dirtable_offset: resq 1
 
 
 section .text
@@ -120,6 +121,7 @@ fat_init:
     mov cx, [bootrecord + boot_record.sectors_reserved]
     add eax, ecx                ; eax += sectors_reserved
     ; eax is now the directory table offset
+    mov [dirtable_offset], eax
 
     ; load the directory table
     ATA_INSEG eax, 32, dirtable  ; not sure if 32 is the right number, but seems so
@@ -131,23 +133,23 @@ fat_init:
     ;load the FAT
     ATA_INSEG esi, edx, fat
 
+    ; write some info about the first file
     TTY_PUTS dirtable + file_entry.name
     mov eax, [dirtable + file_entry.file_size]
+    PRINT_NUM eax
 
-    push eax
-    push format
-    call tty_printf
-    add esp, 8
+    ; and the second one
     TTY_PUTS dirtable + file_entry.name + file_entry_size
     mov eax, [dirtable + file_entry.file_size + file_entry_size]
-
     PRINT_NUM eax
 
 
+    push 1488
+    push 1488
     push my_cool_heap
     push dword 0
     call fat_read
-    add esp, 8
+    add esp, 16
     TTY_PUTS my_cool_heap
 
     ret
@@ -171,9 +173,14 @@ fat_file_size:
     mov eax, [edx + file_entry.file_size]
     ret
 
-;;; ssize_t fat_read(int fid, void* dest)
+;;; ssize_t fat_read(int fid, void* dest, int offset, int count)
 ;;; Tries to read count bytes from the file with the given id at the given offset
 ;;; and returns the number of bytes read
+
+;;; ^ lie, pizdezh and provocation
+;;; offset and count are currently ignored
+;;; it reads the whole file into the buffer (and also some trailing bytes till the end of the cluster)
+;;; also, it always returns zero
 fat_read:
     push ebp
     mov  ebp, esp
@@ -185,27 +192,26 @@ fat_read:
     xor  edx, edx
     mov  edi, [ebp + 12]
     mov  ecx, [ebp + 8]
-        push ecx
-        PRINT_NUM ecx
-        pop ecx
-        push ecx
-        PRINT_NUM ecx
-        pop ecx
     xor  esi, esi
     mov  si,  [dirtable + file_entry.start] ; the first cluster of the file
-    ; ^ ecx nado pribavit
+    add  esi, ecx
     xor  ecx, ecx
     mov  cl,  [bootrecord + boot_record.sectors_per_cluster]
     .loop
-        cmp  esi, 65535
+        cmp  esi, 0FFFFh
         je  .end
+
         mov  eax, esi
+        sub  eax, 2
         mul  ecx
+        add  eax, 32
+        add  eax, [dirtable_offset]
+
         push ecx
         push edi
         ATA_INSEG eax, ecx, edi
-        pop edi
-        pop ecx
+        pop  edi
+        pop  ecx
         mov  eax, ecx
         mul  ebx
         add  edi, eax
@@ -215,13 +221,12 @@ fat_read:
         mov  si, [fat + edx]
         push ecx
         PRINT_NUM esi
-        pop ecx
+        pop  ecx
         jmp  .loop
     .end
     pop esi
     pop edi
     pop ebx
-    TTY_PUTS [ebp + 12]
     mov esp, ebp
     pop ebp
     ret
