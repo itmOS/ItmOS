@@ -28,6 +28,7 @@ multiboot_header:
 
 global _loader
 global memory_map
+global page_directory
 _loader:
         ;; Disable interrupts
         cli
