@@ -5,7 +5,7 @@ section .text
 %include "util/macro.inc"
 
 extern page_directory
-
+extern window
 
 global page_count
 global begin_page
@@ -13,29 +13,41 @@ global init_mem_manager
 
 BASE_M                  equ 0x100000
 PAGE_SIZE               equ 0x1000
+PAGE_SIZE_BIG           equ 0x4000000
 PAGE_SIZE_OFFSET        equ 12
+WINDOW                  equ 0xFFFFF000
+WINDOW_PAGE_NUMBER      equ 1023
+DEFAULT_ACCESS_MODE     equ 0x7
 
-;;; If entry if present, address page aligned,
-;;; current page directory stored in kernel_page_dir
-;;; Return pointer to memory with page table entry
+;;; If current page directory stored in kernel_page_dir and mapped
+;;; Return virtual address of memory with page table entry mapping it to WINDOW page
+;;; in eax
 %macro PAGE_ENTRY_POINTER 1
+        push %1
         mov eax, %1
-        mov ecx, %1
         ;; Get second level page table index 
         shr dword eax, 22
-        ;; Get index of entry in second level page  table
+
+        ;; Get physical address of second level page table
+        sal dword eax, 2
+        add dword eax, [kernel_page_dir]
+        mov dword eax, [eax]
+
+        ;; Map page containing second level page table we need to WINDOW
+        push eax
+        and eax, WINDOW
+        CCALL map_to_window, eax
+        pop eax
+        ;; Put in eax current virtual address of second level table
+        or eax, WINDOW
+        
+        ;; Get index of entry in second level page table
+        pop ecx
         shr dword ecx, 12
         and dword ecx, 0x03FF
-
-        push ecx
-        ;; Get address of second level page table
-        xor edx, edx
-        mov dword ecx, 0x400
-        mul ecx
-        pop ecx
-        add dword eax, [kernel_page_dir]
-        ;; Get pointer
-        mov dword eax, [eax]
+        ;; Get virtual address of page table entry
+        sal dword ecx, 2
+        add eax, ecx
 %endmacro
 
 init_mem_manager:
@@ -78,11 +90,21 @@ init_mem_manager:
 ;;; Return -1 if there is no coherent block of input size
 ;;; If memory needed can be divided use get_one_page
 get_pages:
+
         ret
 
 ;;; put_pages(address, size)
 ;;; Sets given amount of pages beginning from given address free
 put_pages:
+        cmp dword [page_count], 0
+        je .init
+.init:
+        mov dword eax, [esp + 4]
+        mov [kernel_page_dir], eax
+        mov dword eax, [esp + 8]
+        mov [page_count], eax
+
+.exit:
         ret
 
 ;;; Return address to one page of physical memory
@@ -95,8 +117,14 @@ get_one_page:
 put_one_page:
         ret
 
+;;; Maps phyaddr to window virtaddr
+map_to_window:  
+        mov eax, [esp + 4]
+        or eax, 0x7
+        mov [window], eax
+        invlpg [WINDOW]
+ret
 
-;;; TODO make human readable flag constructor
 
 ;;; Maps page phyaddr to virtadr with flags
 ;;; map_page(phyaddr, virtaddr, flags)
@@ -104,10 +132,9 @@ map_page:
         ;; TODO Check both addresses are page-aligned.
         ;; TODO Check if page directory is not allocated and handle
         mov dword edx, [esp + 8]
-        
+
         PAGE_ENTRY_POINTER edx
         
-        ;; pt[ptindex] = ((unsigned long)physaddr) | (flags & 0xFFF) | 0x01
         mov edx, [esp + 4]                                      ; get phys addr
         mov ecx, [esp + 12]
         and dword ecx, 0xFFF                                    ; flags

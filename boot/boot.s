@@ -14,8 +14,8 @@ CHECKSUM	equ -(MAGIC + FLAGS)
 
 ;;; Present, Read/Write and user accessible
 ;;; See http://wiki.osdev.org/Paging
-DEFAULT_ACCESS_MODE equ 0x7
-KERNEL_PAGE_NUMBER	equ (KERNEL_VMA >> 22) ; Page directory index of kernel's 4MB PTE.
+DEFAULT_ACCESS_MODE             equ 0x7
+KERNEL_PAGE_NUMBER	        equ (KERNEL_VMA >> 22) ; Page directory index of kernel's 4MB PTE.
 STACK_SIZE			equ 0x4000			   ; 16k
 
 section .text
@@ -29,6 +29,7 @@ multiboot_header:
 global _loader
 global memory_map
 global page_directory
+global window
 _loader:
         ;; Disable interrupts
         cli
@@ -41,13 +42,12 @@ _loader:
 	mov es, ax
 	mov fs, ax
 	mov gs, ax
-	;; FIXME: Next line fails WTF?
-	;; mov ss, ax
+	mov ss, ax
 
 	;; Set up page table
 	mov eax, (page_directory - KERNEL_VMA)
 	mov cr3, eax
-
+        
 	;; Set PSE bit in CR4 to enable 4MB pages.
 	mov ecx, cr4
 	or ecx, 0x00000010
@@ -85,7 +85,13 @@ page_directory:
 		dd 0x00000083
 		times (KERNEL_PAGE_NUMBER - 1) dd 0
 		dd 0x00000083
-		times (1024 - KERNEL_PAGE_NUMBER - 1) dd 0
+		times (1024 - KERNEL_PAGE_NUMBER - 2) dd 0
+		dd (last_page_dir + DEFAULT_ACCESS_MODE) ; mapping last page directory for 4 KB pages
+last_page_dir: 
+	        times (1024 - 1) dd 0
+                ;; saving pointer to the last page to use it as a window
+window:
+                dd 0
 
 ;;; GDT for the 32-bit kernel
 align 16
