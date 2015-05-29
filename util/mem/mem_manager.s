@@ -4,25 +4,25 @@ section .text
 %include "tty/tty.inc"
 %include "util/macro.inc"
 
-extern page_directory
 extern window
 
 global page_count
 global begin_page
 global init_mem_manager
 
-BASE_M                  equ 0x100000
+KERNEL_PHY              equ 0x400000
 PAGE_SIZE               equ 0x1000
-PAGE_SIZE_BIG           equ 0x4000000
 PAGE_SIZE_OFFSET        equ 12
 WINDOW                  equ 0xFFFFF000
 WINDOW_PAGE_NUMBER      equ 1023
 DEFAULT_ACCESS_MODE     equ 0x7
 
-;;; If current page directory stored in kernel_page_dir and mapped
+;;; If current page directory stored in curr_page_dir and mapped
 ;;; Return virtual address of memory with page table entry mapping it to WINDOW page
 ;;; in eax
 %macro PAGE_ENTRY_POINTER 1
+        ;; TODO Check both addresses are page-aligned.
+        ;; TODO Check if page directory is not allocated and handle
         push %1
         mov eax, %1
         ;; Get second level page table index 
@@ -30,9 +30,22 @@ DEFAULT_ACCESS_MODE     equ 0x7
 
         ;; Get physical address of second level page table
         sal dword eax, 2
-        add dword eax, [kernel_page_dir]
+        add dword eax, [curr_page_dir]
+        mov ecx, eax
         mov dword eax, [eax]
 
+        ;; Check if second level page table is mapped
+        test eax, eax
+        jnz .mapping
+        ;; If not get one physical page for it
+        ;; TODO Check if result is not -1
+        call get_one_page
+        push eax
+        ;; Initialize first level page table with this new address
+        or eax, DEFAULT_ACCESS_MODE
+        mov [ecx], eax
+        pop eax
+.mapping:
         ;; Map page containing second level page table we need to WINDOW
         push eax
         and eax, WINDOW
@@ -50,12 +63,19 @@ DEFAULT_ACCESS_MODE     equ 0x7
         add eax, ecx
 %endmacro
 
+;;; Initializes manager with current page table address
+;;; from  cr3
+set_page_table:
+        ;; Save current cr3 value
+        mov eax, cr3
+        mov [curr_page_dir], eax
+        ret
+
 init_mem_manager:
         pusha
-        mov eax, cr3
-        mov [kernel_page_dir], eax                      ; save current cr3 value
-        
-        BOOTINFO_GET_MMAP_ITER eax                      ; get iterator on list of memory regions
+        ;; Get iterator on list of memory regions
+        BOOTINFO_GET_MMAP_ITER eax
+        ;; TODO Remove to put_pages
         mov dword [begin_page], eax
 .loop:
         
@@ -63,21 +83,46 @@ init_mem_manager:
         test ebx, ebx
         jz .exit
 
-        mov ebx, BOOTINFO_MMAP_TYPE(eax)                ; check if region is free to use
+        ;; Check if region is free to use
+        mov ebx, BOOTINFO_MMAP_TYPE(eax)
         cmp ebx, 1
         jne .finish
 
-        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)            ; get base address of memory regiont
-        cmp ebx, BASE_M
-        jl .finish
-        
-        mov ecx, BOOTINFO_MMAP_LENGTH(eax)              ; get length in bytes
-        shr ecx, 12                                     ; length in pages
-        CCALL put_pages, ebx, ecx                       ; call put region of given address and length
+        ;; Check if 0-4MB lays in block
+        mov ebx, BOOTINFO_MMAP_LENGTH(eax)
+        add ebx, BOOTINFO_MMAP_BASEADDR(eax)
+        mov ecx, BOOTINFO_MMAP_BASEADDR(eax)
+        ;; Check if begining is after 4MB
+        cmp ecx, KERNEL_PHY
+        ;; If so do nothing
+        jnl .normal
+        ;; Check if the end is after 4MB
+        cmp ebx, KERNEL_PHY
+        ;; If not block must not be used at all
+        jng .finish
 
-        mov ecx, BOOTINFO_MMAP_LENGTH(eax)              ; add length of region to page_count
+        ;; Setting new length and base address
+        ;; Getting length difference
+        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
+        sub ebx, KERNEL_PHY
+        ;; Get new length
+        mov ecx, BOOTINFO_MMAP_LENGTH(eax)
+        sub ecx, ebx
+        ;; Set base address to 4MB
+        mov ebx, KERNEL_PHY
+        jmp .set
+.normal:
+        ;; Get base address of memory region
+        mov ecx, BOOTINFO_MMAP_BASEADDR(eax)
+        ;; Get length in bytes
+        mov ecx, BOOTINFO_MMAP_LENGTH(eax)
+.set:
+        ;; Get length in pages
+        shr ecx, 12
+        ;; TODO remove count changing to put_pages
         add dword [page_count], ecx
-
+        ; Put region of given base address and length
+        CCALL put_pages, ebx, ecx
 .finish:
         BOOTINFO_MMAP_NEXT eax
         jmp .loop
@@ -90,21 +135,11 @@ init_mem_manager:
 ;;; Return -1 if there is no coherent block of input size
 ;;; If memory needed can be divided use get_one_page
 get_pages:
-
         ret
 
 ;;; put_pages(address, size)
 ;;; Sets given amount of pages beginning from given address free
 put_pages:
-        cmp dword [page_count], 0
-        je .init
-.init:
-        mov dword eax, [esp + 4]
-        mov [kernel_page_dir], eax
-        mov dword eax, [esp + 8]
-        mov [page_count], eax
-
-.exit:
         ret
 
 ;;; Return address to one page of physical memory
@@ -129,12 +164,10 @@ ret
 ;;; Maps page phyaddr to virtadr with flags
 ;;; map_page(phyaddr, virtaddr, flags)
 map_page:
-        ;; TODO Check both addresses are page-aligned.
-        ;; TODO Check if page directory is not allocated and handle
         mov dword edx, [esp + 8]
 
         PAGE_ENTRY_POINTER edx
-        
+        ;; TODO check if pointer is not -1
         mov edx, [esp + 4]                                      ; get phys addr
         mov ecx, [esp + 12]
         and dword ecx, 0xFFF                                    ; flags
@@ -153,14 +186,19 @@ map_page:
 unmap_page:     
         mov dword ecx, [esp + 4]
         PAGE_ENTRY_POINTER ecx
+        ;; TODO check if pointer is not -1
         mov dword [eax], 0
+        invlpg [eax]            ; TODO Think if needed
         ret
 
 ;;; Return address of physical page mapped in given virtual page address
 ;;; get_phys_page(virtaddr)
 get_phys_page:  
         mov dword ecx, [esp + 4]
+
         PAGE_ENTRY_POINTER ecx
+        ;; TODO check if pointer is not -1
+
         ;; Get phys page
         mov dword edx, [eax]
         and dword edx, ~0xFFF
@@ -169,10 +207,10 @@ get_phys_page:
         and dword eax, 0xFFF
         add eax, edx
         ret
-
-
-;;; Address of the first block
+align 4
+;;; Address of the first block of physical memory
 begin_page:             dd 0
 ;;; Amount of free pages
 page_count:             dd 0
-kernel_page_dir:        dd 0
+;;; Current virtual address of current first level page table
+curr_page_dir:          dd 0
