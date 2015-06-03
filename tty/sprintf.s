@@ -79,6 +79,9 @@ sformat:
         inc edx
         jmp .while_not_zero
         .end_while:
+        ;; FIXME: Don't get why we need two following lines
+        mov eax, 1
+        stosb
         xor eax, eax
         jmp .exit
 
