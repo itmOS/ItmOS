@@ -6,6 +6,7 @@ section .text
 global get_from_scancode
 global buf_putc
 global buf_getc
+global buf_delc
 global buffer
 global bufsize
 global top
@@ -46,6 +47,7 @@ get_from_scancode:
 %%exit: 
         mov dword [bottom], eax
         mov dword [top], ecx
+        mov dword ebx, [bufsize]
 
         pop ebx
         pop ecx
@@ -77,6 +79,42 @@ buf_putc:
         pop ecx
         ret
 
+
+buf_delc:
+        push ecx
+        ;; Check if top and bottom pointers are same
+        mov dword ecx, [top]
+        cmp dword ecx, [bottom]
+        jne .simple
+
+        ;; If so and and buffer is not full
+        cmp dword [bufsize], 0
+        jne .simple
+        pop ecx
+        ret
+.simple:
+        ;; No delete if size zero
+        mov ecx, [bufsize]
+        test ecx, ecx
+        jz .exit
+        ;; No delete if last symbol is endl
+        mov dword ecx, [bottom]
+        test ecx, ecx
+        jnz .nzero
+        mov ecx, BUFSIZE
+.nzero:
+        dec ecx
+        xor eax, eax
+        mov al, [buffer + ecx]
+        cmp al, 10
+        je .exit
+        mov [bottom], ecx
+        dec dword [bufsize]
+.exit:
+        pop ecx
+        ret
+
+
 buf_getc:
         push ecx
         ;; Check if top and bottom pointers are same
@@ -96,7 +134,7 @@ buf_getc:
         dec dword [bufsize]
         ;; Get symbol
         mov dword ecx, [top]
-	
+
         xor eax, eax
         mov al, [buffer + ecx]
         inc dword [top]
