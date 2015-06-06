@@ -134,7 +134,7 @@ tty_putc:
 	jne .put_char
 	call tty_endl
 	ret
-	.put_char:
+.put_char:
 	push ecx
 	push ebx
 	push eax
@@ -145,6 +145,7 @@ tty_putc:
 	mov [ebx + ebx + video_start], ax
 	inc word [cursor_pos]
 	call check_for_overflow
+	inc dword [from_endl]
 
 	pop eax
 	pop ebx
@@ -162,14 +163,16 @@ tty_delc:
         test ebx, ebx
         jz .exit
 
-        cmp ebx, [last_newline]
-        je .exit
+        mov eax, [from_endl]
+        test eax, eax
+        jz .exit
 
         ;; Set previous symbol to '\0'
         dec ebx
         xor eax, eax
         mov [ebx + ebx + video_start], ax
         dec word [cursor_pos]
+        dec dword [from_endl]
 .exit:
         pop ecx
         pop ebx
@@ -189,9 +192,7 @@ tty_endl:
 	sub [cursor_pos], dx
 	add word [cursor_pos], screen_width
 	call check_for_overflow
-
-	mov ax, [cursor_pos]
-	mov [last_newline], ax
+	mov dword [from_endl], 0
 
 	pop ecx
 	pop edx
@@ -214,4 +215,4 @@ cur_text_style: db 0
 
 align 4
 cursor_pos: dd 0
-last_newline:   dd 0
+from_endl:   dd 0
