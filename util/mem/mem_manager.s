@@ -39,7 +39,8 @@ DEFAULT_ACCESS_MODE     equ 0x7
         jnz .mapping
         ;; If not get one physical page for it
         ;; TODO Check if result is not -1
-        call get_one_page
+        mov dword eax, 1
+        CCALL get_pages, eax
         push eax
         ;; Initialize first level page table with this new address
         or eax, DEFAULT_ACCESS_MODE
@@ -69,6 +70,7 @@ set_page_table:
         ;; Save current cr3 value
         mov eax, cr3
         mov [curr_page_dir], eax
+        ;; TODO invalidate all TLB
         ret
 
 init_mem_manager:
@@ -140,16 +142,80 @@ get_pages:
 ;;; put_pages(address, size)
 ;;; Sets given amount of pages beginning from given address free
 put_pages:
-        ret
+        ;; ;; TODO check if address is page aligned
+;;         ;; Check if begin page is zero that means that there were not free physical pages
+;;         mov dword eax, [begin_page]
+;;         test eax, eax
+;;         jz .normal
+;;         ;; Set new begin page address same as given base address
+;;         mov dword eax, [esp + 4]
+;;         mov [begin_page], eax
+;;         ;; Set page count to given size
+;;         mov dword ecx, [esp + 8]
+;;         mov [page_count], ecx
+;;         ;; Call mapping this block to WINDOW
+;;         CCAL map_to_window, eax
+;;         mov dword eax, [esp + 4]
+;;         ;; Because we store memory structure just in memory
+;;         ;; There are 3 uint32 in the begging of the physical memory block
+;;         ;; They are: size in pages, previous block(or zero), next block(or zero)
+;;         mov [eax], ecx
+;;         mov [eax + 4], 0
+;;         mov [eax + 8], 0
+;;         ret
+;; .normal:
+;;         mov ecx, [begin_page]
+;;         xor edx, edx
+;;         ;; Need to determine the last block with address less than given, the first block greater than given
+;; .loop:
+;;         ;; Check if current block exists
+;;         test ecx, ecx
+;;         jz .finish_last
 
-;;; Return address to one page of physical memory
-;;; Returns -1 if there are no pages
-get_one_page:
-        ret
+;;         CCAL map_to_window, ecx
 
-;;; put_one_page(address)
-;;; Sets page from given address free
-put_one_page:
+;;         mov dword esi, [WINDOW]
+;;         sal dword esi, 12
+;;         add esi, ecx                    ; right bound of current block 
+
+;;         mov dword eax, [esp + 4]        ; left bound of block to put
+;;         mov dword edi, [esp + 8]
+;;         sal dword esi, 12
+;;         add edi, eax                    ; right bound of block to put
+
+;;         cmp esi, eax
+;;         jl .less
+
+;;         cmp edi, ecx
+;;         jnl .finish
+;; .less:
+;;         mov edx, ecx
+;;         mov ecx, [WINDOW + 8]
+;;         jmp .loop
+;; .finish:
+
+
+
+;; .first_bound:
+
+;; .both_bounds:
+
+
+;; .finish_last:
+;;         ;; Previous block (address in edx is currently mapped to window)
+;;         ;; In esi stored the right bound
+;;         cmp esi, eax
+;;         je .add_to prev
+
+;;         CCAL map_to_window, eax
+;;         mov dword esi, [esp + 8]
+;;         mov [WINDOW], esi
+;;         mov [WINDOW + 4], edx
+;;         mov dword [WINDOW + 8], 0
+;;         ret
+;; .add_to_prev:
+;;         mov dword edi, [esp + 8]
+;;         add dword [WINDOW], edi
         ret
 
 ;;; Maps phyaddr to window virtaddr
@@ -158,7 +224,7 @@ map_to_window:
         or eax, 0x7
         mov [window], eax
         invlpg [WINDOW]
-ret
+        ret
 
 
 ;;; Maps page phyaddr to virtadr with flags
@@ -187,6 +253,12 @@ unmap_page:
         mov dword ecx, [esp + 4]
         PAGE_ENTRY_POINTER ecx
         ;; TODO check if pointer is not -1
+        push eax
+        mov eax, [eax]
+        and eax, WINDOW
+        mov dword ecx, 1
+        CCALL put_pages, eax, ecx
+        pop eax
         mov dword [eax], 0
         invlpg [eax]            ; TODO Think if needed
         ret
