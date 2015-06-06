@@ -151,7 +151,7 @@ tty_putc:
 	pop ecx
 	ret
 
-;;; Remove last character if it exists
+;;; Remove last character if it exists and is not endl
 tty_delc:
         push eax
         push ebx
@@ -161,7 +161,12 @@ tty_delc:
         mov ebx, [cursor_pos]
         test ebx, ebx
         jz .exit
+
+        cmp ebx, [last_newline]
+        je .exit
+
         ;; Set previous symbol to '\0'
+        dec ebx
         xor eax, eax
         mov [ebx + ebx + video_start], ax
         dec word [cursor_pos]
@@ -185,6 +190,9 @@ tty_endl:
 	add word [cursor_pos], screen_width
 	call check_for_overflow
 
+	mov ax, [cursor_pos]
+	mov [last_newline], ax
+
 	pop ecx
 	pop edx
 	pop eax
@@ -206,3 +214,4 @@ cur_text_style: db 0
 
 align 4
 cursor_pos: dd 0
+last_newline:   dd 0
