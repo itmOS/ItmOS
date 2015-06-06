@@ -5,6 +5,7 @@ section .text
 global tty_clear
 global tty_puts
 global tty_putc
+global tty_delc
 global tty_endl
 global tty_set_style
 global tty_save_style
@@ -149,6 +150,26 @@ tty_putc:
 	pop ebx
 	pop ecx
 	ret
+
+;;; Remove last character if it exists
+tty_delc:
+        push eax
+        push ebx
+        push ecx
+        ;; Check if not the beginning
+        xor ebx, ebx
+        mov ebx, [cursor_pos]
+        test ebx, ebx
+        jz .exit
+        ;; Set previous symbol to '\0'
+        xor eax, eax
+        mov [ebx + ebx + video_start], ax
+        dec word [cursor_pos]
+.exit:
+        pop ecx
+        pop ebx
+        pop eax
+        ret
 
 ;;; Change cursor position to the start of the next line.
 tty_endl:
