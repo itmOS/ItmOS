@@ -1,4 +1,4 @@
-OBJ = mem_manager.o mem_test.o
+OBJ = phymem.o virtmem.o mem_test.o
 
 all: $(OBJ)
 

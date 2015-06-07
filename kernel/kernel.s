@@ -14,15 +14,12 @@ extern string_register_tests
 extern mem_register_tests
 extern init_mem_manager
 extern mmap_print
-extern begin_page
-extern page_count
 
 ;;; Entry point of the kernel.
 kernel_main:
         call init_mem_manager
 	mov esp, stack_top
-        CCALL tty_printf, memory_test, [begin_page]
-        CCALL tty_printf, memory_test, [page_count]
+
 	call init_interrupts
         call logging_prelude
         call ata_register_tests

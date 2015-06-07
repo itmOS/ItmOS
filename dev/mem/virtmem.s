@@ -5,6 +5,8 @@ section .text
 %include "util/macro.inc"
 
 extern window
+extern get_pages
+extern put_pages
 
 global begin_page
 global map_to_window
