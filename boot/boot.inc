@@ -1,3 +1,8 @@
 KERNEL_VMA          equ 0xC0000000 ; 3GB
 PROCESS_LIMIT       equ 256
 TSS_BEGIN           equ 43
+
+PRIVILEGED_CODE     equ 8
+PRIVILEGED_DATA     equ 16
+USERSPACE_CODE      equ 27
+USERSPACE_DATA      equ 35

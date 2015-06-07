@@ -1,4 +1,4 @@
-;%include "util/mem/mem.inc"
+%include "util/mem/mem.inc"
 %include "boot/boot.inc"
 
 section .text
@@ -31,7 +31,7 @@ exec:
     mov edx, [proc_count]
     lea edi, [tss_table + eax]
     rep movsd
-    ;DUP_PAGE_TABLE
+    DUP_PAGE_TABLE
     mov [tss_table + ebx + TSS.cr3], eax
     mov eax, [esp + 4]
     mov [tss_table + ebx + TSS.eip], eax
@@ -59,8 +59,30 @@ current_pid:
     ret
 
 context_switch:
-    cmp byte [process_locked], 1
-    ; TODO TSS descriptors!
+    cmp byte [process_locked], 0
+    je .switch
+    iret
+.switch:
+    mov byte [process_locked], 1
+    mov eax, [cur_process]
+    mov ecx, eax
+    shl ecx, TSS_POWER
+    mov edx, [proc_count]
+.loop:
+    add eax, TSS_POWER
+    inc ecx
+    cmp eax, edx
+    jl .check
+    xor eax, eax
+    xor ecx, ecx
+.check:
+    cmp byte [process_ready + ecx], 0
+    je .loop
+    mov byte [process_locked], 0
+    lea cx, [cx * 8 + TSS_BEGIN]
+    jmp cx:.return
+.return:
+    iret
 
 global waitpid
 waitpid:
