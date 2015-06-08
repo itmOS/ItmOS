@@ -17,27 +17,18 @@ extern mmap_print
 
 ;;; Entry point of the kernel.
 kernel_main:
-        call init_mem_manager
 	mov esp, stack_top
-
 	call init_interrupts
+        call init_mem_manager
+
         call logging_prelude
         call ata_register_tests
         call mem_register_tests
         call string_register_tests
 	
         ATA_IDENTIFY
-        xchg bx, bx
 
         TEST_RUN_ALL
-        call mmap_print
-    	push dword -80
-    	push dword 70
-    	push sprintf_test
-        CCALL tty_printf, sprintf_test, dword 70, dword -80
-    	pop eax
-    	pop eax
-    	pop eax
 
 	jmp $
 

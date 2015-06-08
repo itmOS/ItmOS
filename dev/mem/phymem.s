@@ -92,9 +92,10 @@ get_pages:
 
 ;;; Takes address and amount of pages of memory block and frees pages
 put_pages:
-        pusha
         mov dword ecx, [esp + 4]        ; get left bound of block to add
         mov dword ebx, [esp + 8]
+
+        pusha
         sal dword ebx, 12
         add ebx, ecx                    ; get right bound of block to add
         mov dword eax, [begin_page]     ; current block

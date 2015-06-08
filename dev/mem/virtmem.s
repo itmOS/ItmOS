@@ -73,7 +73,6 @@ init_mem_manager:
         ;; Get iterator on list of memory regions
         BOOTINFO_GET_MMAP_ITER eax
 .loop:
-        
         mov ebx, BOOTINFO_MMAP_TYPE(eax)
         test ebx, ebx
         jz .exit
@@ -87,6 +86,7 @@ init_mem_manager:
         mov ebx, BOOTINFO_MMAP_LENGTH(eax)
         add ebx, BOOTINFO_MMAP_BASEADDR(eax)
         mov ecx, BOOTINFO_MMAP_BASEADDR(eax)
+
         ;; Check if begining is after 4MB
         cmp ecx, KERNEL_PHY
         ;; If so do nothing
@@ -98,8 +98,9 @@ init_mem_manager:
 
         ;; Setting new length and base address
         ;; Getting length difference
-        mov ebx, BOOTINFO_MMAP_BASEADDR(eax)
-        sub ebx, KERNEL_PHY
+        mov edi, BOOTINFO_MMAP_BASEADDR(eax)
+        mov ebx, KERNEL_PHY
+        sub ebx, edi
         ;; Get new length
         mov ecx, BOOTINFO_MMAP_LENGTH(eax)
         sub ecx, ebx
