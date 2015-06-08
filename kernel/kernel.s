@@ -60,5 +60,5 @@ lba: dd 200
 
 section .bss
 stack:
-        resd 0x1000
+		resd 0x1000
 stack_top:
