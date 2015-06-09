@@ -24,16 +24,14 @@ kernel_main:
 
 	TEST_RUN_ALL
 
-    extern init_tss
-    call init_tss
-
     push dword -80
     push dword 70
     push sprintf_test
     CCALL tty_printf, sprintf_test, dword 70, dword -80
-    pop eax
-    pop eax
-    pop eax
+    add eax, 12
+    extern sch_bootstrap
+    jmp sch_bootstrap
+
 	jmp $
 
 logging_prelude:

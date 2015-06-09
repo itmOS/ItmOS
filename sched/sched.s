@@ -5,28 +5,40 @@ section .text
 
 global init_tss
 init_tss:
-    mov edi, [tss_address]
-    mov eax, tss_table
+    mov [tss_descr], edi
+    mov [edi], word TSS_size
+    ret
+
+%macro switchTss 0
     mov ecx, eax
     shr ecx, 16
-    ; Filling the TSS descriptor.
-    ; No time to explain.
+    mov edi, [tss_descr]
     mov [edi + 7], ch
     mov [edi + 4], cl
     mov [edi + 2], ax
-    mov [edi], word TSS_size
-    xchg bx, bx
-    mov cx, 40
+    mov cx, TSS_DESCR
     ltr cx
-    jmp 40:.return
-.return
+%endmacro
+
+global sch_bootstrap
+sch_bootstrap:
+    xchg bx, bx
+    mov eax, tss_table
+    switchTss
+    add dword [proc_count], TSS_size
+    mov ebx, tss_table + TSS.stackTop
+    mov [tss_table + TSS.esp0], ebx
+    mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
+    mov eax, cr3
+    mov [tss_table + TSS.cr3], eax
+    mov dword [tss_table + TSS.stackTop - 4], userspace
+    mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 4
+    mov esp, [tss_table + TSS.esp]
     ret
 
-global save_tss
-save_tss:
-    mov word [edi + 6], TSS_size
-    mov [tss_address], edi
-    ret
+userspace:
+    xchg bx, bx
+    jmp userspace
 
 global exec
 exec:
@@ -44,22 +56,12 @@ exec:
     ;DUP_PAGE_TABLE
     mov [tss_table + ebx + TSS.cr3], eax
     mov eax, [esp + 4]
-    mov [tss_table + ebx + TSS.eip], eax
+    ;mov [tss_table + ebx + TSS.eip], eax
     shr ebx, TSS_POWER
     mov byte [process_ready + ebx], 1
     pop ebx
     pop esi
     pop edi
-    ret
-
-global process_lock
-process_lock:
-    mov byte [process_locked], 1
-    ret
-
-global process_unlock
-process_unlock:
-    mov byte [process_locked], 0
     ret
 
 global current_pid
@@ -69,17 +71,14 @@ current_pid:
     ret
 
 context_switch:
-    cmp byte [process_locked], 0
-    je .switch
-    iret
-.switch:
-    mov byte [process_locked], 1
+    xchg bx, bx
     mov eax, [cur_process]
+    mov [eax + TSS.esp], esp
     mov ecx, eax
     shl ecx, TSS_POWER
     mov edx, [proc_count]
 .loop:
-    add eax, TSS_POWER
+    add eax, TSS_size
     inc ecx
     cmp eax, edx
     jl .check
@@ -88,16 +87,15 @@ context_switch:
 .check:
     cmp byte [process_ready + ecx], 0
     je .loop
-    mov edi, [tss_address]
-    mov ecx, eax
-    shr ecx, 24
-    mov [edi], cl
-    and eax, 0x00FFFFFF
-    and dword [edi + 2], 0xFF000000
-    or [edi + 2], eax
-    jmp TSS_DESCR:.return
-.return:
-    iret
+    add eax, tss_table
+    switchTss
+    mov ecx, [eax + TSS.cr3]
+    mov cr3, ecx
+    mov esp, [eax + TSS.esp]
+    ; FIXME A very dangerous place!
+    ; We can receive a timer interrupt
+    ; right here.
+    ret
 
 global waitpid
 waitpid:
@@ -123,7 +121,7 @@ add_fd_object:
     mov esi, [cur_process]
     lea esi, [tss_table + ecx + TSS.fdTable]
     mov edx, esi
-    mov ecx, (TSS_size - TSS.fdTable) / 4
+    mov ecx, MAX_FD
     repnz lodsd
     test ecx, ecx
     jz .failure
@@ -140,24 +138,23 @@ section .data
 
 proc_count   dd 0
 cur_process  dd 0
-tss_address  dd 0
+tss_descr    dd 0
 
-process_locked:  db 1
 process_ready: times PROCESS_LIMIT db 0
 
 section .bss
 
 align 4096
 global tss_table
-tss_table: 
+tss_table:
     times PROCESS_LIMIT resb TSS_size
 
-TSS_POWER     equ 7
+MAX_FD        equ 64
+TSS_POWER     equ 10
 PROCESS_LIMIT equ 256
 
 struc TSS
-    .prevTask resw 1
-              resw 1 
+              resd 1
     .esp0     resd 1
     .ss0      resw 1
               resw 1
@@ -168,33 +165,10 @@ struc TSS
     .ss2      resw 1
               resw 1
     .cr3      resd 1
-    .eip      resd 1
-    .eflags   resd 1
-    .eax      resd 1
-    .ecx      resd 1
-    .edx      resd 1
-    .ebx      resd 1
     .esp      resd 1
-    .ebp      resd 1
-    .esi      resd 1
-    .edi      resd 1
-    .es       resw 1
-              resw 1
-    .cs       resw 1
-              resw 1
-    .ss       resw 1
-              resw 1
-    .ds       resw 1
-              resw 1
-    .fs       resw 1
-              resw 1
-    .gs       resw 1
-              resw 1
-    .ldtSel   resw 1
-              resw 1
-    .trapFlag resw 1
-    .ioMap    resw 1
-    .status   resd 1
     align 4
-    .fdTable  resb ((1 << TSS_POWER) - $)
+    .status   resd 1
+    .fdTable  resd MAX_FD
+    .stackBot resb ((1 << TSS_POWER) - $)
+    .stackTop
 endstruc

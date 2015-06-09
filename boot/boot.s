@@ -63,11 +63,9 @@ _loader:
     ; Why not get rid of that duct tape?
     mov byte [page_directory + 7], 0
 
-    ; We should also remember the address of the
-    ; TSS descriptor before we set off.
     mov edi, gdt32.tss
-    extern save_tss ; See sched/sched.s.
-    call save_tss
+    extern init_tss
+    call init_tss
 
     extern kernel_main
     jmp kernel_main
