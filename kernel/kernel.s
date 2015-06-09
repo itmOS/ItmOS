@@ -15,14 +15,18 @@ extern string_register_tests
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
-        call logging_prelude
+    call logging_prelude
 
-        call ata_register_tests
-        call string_register_tests
-	
+    call ata_register_tests
+    call string_register_tests
+
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
+
+    extern init_tss
+    call init_tss
+
     push dword -80
     push dword 70
     push sprintf_test

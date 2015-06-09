@@ -1,21 +1,31 @@
-%include "util/mem/mem.inc"
+;%include "util/mem/mem.inc"
 %include "boot/boot.inc"
 
 section .text
 
-global fill_in_tss
-fill_in_tss:
+global init_tss
+init_tss:
+    mov edi, [tss_address]
     mov eax, tss_table
-    mov ecx, PROCESS_LIMIT
-.loop:
-    mov [edi], eax
-    mov [edi + 2], eax
-    mov word [edi + 1], 0x00E9
+    mov ecx, eax
+    shr ecx, 16
+    ; Filling the TSS descriptor.
+    ; No time to explain.
+    mov [edi + 7], ch
+    mov [edi + 4], cl
+    mov [edi + 2], ax
+    mov [edi], word TSS_size
+    xchg bx, bx
+    mov cx, 40
+    ltr cx
+    jmp 40:.return
+.return
+    ret
+
+global save_tss
+save_tss:
     mov word [edi + 6], TSS_size
-    add eax, TSS_size
-    add edi, 8
-    sub ecx, 1
-    jnz .loop
+    mov [tss_address], edi
     ret
 
 global exec
@@ -31,7 +41,7 @@ exec:
     mov edx, [proc_count]
     lea edi, [tss_table + eax]
     rep movsd
-    DUP_PAGE_TABLE
+    ;DUP_PAGE_TABLE
     mov [tss_table + ebx + TSS.cr3], eax
     mov eax, [esp + 4]
     mov [tss_table + ebx + TSS.eip], eax
@@ -78,9 +88,14 @@ context_switch:
 .check:
     cmp byte [process_ready + ecx], 0
     je .loop
-    mov byte [process_locked], 0
-    lea cx, [cx * 8 + TSS_BEGIN]
-    jmp cx:.return
+    mov edi, [tss_address]
+    mov ecx, eax
+    shr ecx, 24
+    mov [edi], cl
+    and eax, 0x00FFFFFF
+    and dword [edi + 2], 0xFF000000
+    or [edi + 2], eax
+    jmp TSS_DESCR:.return
 .return:
     iret
 
@@ -125,6 +140,7 @@ section .data
 
 proc_count   dd 0
 cur_process  dd 0
+tss_address  dd 0
 
 process_locked:  db 1
 process_ready: times PROCESS_LIMIT db 0
@@ -132,9 +148,12 @@ process_ready: times PROCESS_LIMIT db 0
 section .bss
 
 align 4096
-tss_table: times PROCESS_LIMIT resb TSS_size
+global tss_table
+tss_table: 
+    times PROCESS_LIMIT resb TSS_size
 
-TSS_POWER equ 7
+TSS_POWER     equ 7
+PROCESS_LIMIT equ 256
 
 struc TSS
     .prevTask resw 1

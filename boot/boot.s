@@ -2,8 +2,6 @@ section .text
 
 %include "boot/boot.inc"
 
-extern kernel_main
-
 ;;; Multiboot constants http://nongnu.askapache.com/grub/phcoder/multiboot.pdf
 MODULEALIGN equ  1<<0
 MEMINFO     equ  1<<1
@@ -65,12 +63,13 @@ _loader:
     ; Why not get rid of that duct tape?
     mov byte [page_directory + 7], 0
 
-    ; We should also fill the remaining part of
-    ; the GDT after we have jumped to the higher half.
+    ; We should also remember the address of the
+    ; TSS descriptor before we set off.
     mov edi, gdt32.tss
-    extern fill_in_tss ; See sched/sched.s.
-    call fill_in_tss
+    extern save_tss ; See sched/sched.s.
+    call save_tss
 
+    extern kernel_main
     jmp kernel_main
 
 section .data
@@ -101,9 +100,7 @@ gdt32:
         dq 0x00CF92000000FFFF   ; DATA - 16
         dq 0x00CCFA0000000000   ; userspace code - 24 | 3 = 27
         dq 0x00CCF20000000000   ; userspace data - 32 | 3 = 35
-.tss:   ; Here will go the TSS descriptors.
-        ; Not initialized in the beginning.
-        times PROCESS_LIMIT dq 0
+.tss:   dq 0x0000E90000000000
 .ptr:
         dw $ - gdt32 - 1
         dd (gdt32 - KERNEL_VMA)
