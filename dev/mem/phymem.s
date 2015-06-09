@@ -31,7 +31,13 @@ DEFAULT_ACCESS_MODE     equ 0x7
 ;;; If memory needed can be divided use get_one_page
 get_pages:
         mov dword eax, [esp + 4]        ; get size
-        pusha
+
+        push edi
+        push esi
+        push ebx
+        push edx
+        push ecx
+
         mov dword edx, 0x100000         ; set size to maximum
         xor edi, edi                    ; answer block
         xor esi, esi                    ; previous of answer block
@@ -90,19 +96,22 @@ get_pages:
         mov [WINDOW + 4], ecx
         mov eax, edi
 .exit:
-        popa
+        pop ecx
+        pop edx
+        pop ebx
+        pop esi
+        pop edi
         ret
 .fail:
         xor eax, eax
-        popa
-        ret
-
+        jmp .exit
 ;;; Takes address and amount of pages of memory block and frees pages
 put_pages:
         mov dword ecx, [esp + 4]        ; get left bound of block to add
         mov dword ebx, [esp + 8]
-
+        
         pusha
+        mov esi, ebx                    ; save size
         sal dword ebx, 12
         add ebx, ecx                    ; get right bound of block to add
         mov dword eax, [begin_page]     ; current block
@@ -127,8 +136,7 @@ put_pages:
         ;; Just add new block and set its next to current
         SAFE_WINDOW ecx
         ;; Put size
-        mov dword ebx, [esp + 8]
-        mov [WINDOW], ebx
+        mov [WINDOW], esi
         ;; Put current block as next
         mov [WINDOW + 4], eax
 
@@ -136,13 +144,12 @@ put_pages:
 .eqrightbound:   
         ;; Get size and next of current page
         mov dword edi, [WINDOW]
-        mov dword esi, [WINDOW + 4]
+        mov dword ebx, [WINDOW + 4]
         SAFE_WINDOW ecx
         ;; Just add page with sum of sizes of current and to add and current's next
-        mov dword ebx, [esp + 8]
-        mov [WINDOW], ebx
+        mov [WINDOW], esi
         add dword [WINDOW], edi
-        mov [WINDOW + 4], esi
+        mov [WINDOW + 4], ebx
 
         jmp .exit_with_prev
 .rightbound:
@@ -151,8 +158,7 @@ put_pages:
         cmp ecx, edi
         jne .finishloop
         ;; Otherwise add size of block to add to current(it is mapped to window already)
-        mov ebx, [esp + 8]
-        add dword [WINDOW], ebx
+        add dword [WINDOW], esi
         mov dword edx, [WINDOW + 4]
         ;; Check if there is next
         test edx, edx
@@ -187,8 +193,7 @@ put_pages:
         ;; Or there are no blocks
         SAFE_WINDOW ecx
         ;; Just add new block with no next
-        mov dword ebx, [esp + 8]
-        mov dword [WINDOW], ebx
+        mov dword [WINDOW], esi
         mov dword [WINDOW + 4], 0
 
         jmp .exit_with_prev
