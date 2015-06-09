@@ -86,7 +86,7 @@ page_directory:
 		times (KERNEL_PAGE_NUMBER - 1) dd 0
 		dd 0x00000083
 		times (1024 - KERNEL_PAGE_NUMBER - 2) dd 0
-		dd (last_page_dir + DEFAULT_ACCESS_MODE - KERNEL_VMA) ; mapping last page directory for 4 KB pages
+		dd (last_page_dir + DEFAULT_ACCESS_MODE  - KERNEL_VMA) ; mapping last page directory for 4 KB pages
 last_page_dir: 
 	        times (1024 - 1) dd 0
                 ;; saving pointer to the last page to use it as a window

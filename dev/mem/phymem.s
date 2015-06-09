@@ -18,14 +18,20 @@ WINDOW                  equ 0xFFFFF000
 WINDOW_PAGE_NUMBER      equ 1023
 DEFAULT_ACCESS_MODE     equ 0x7
 
+%macro SAFE_WINDOW 1
+        push eax
+        CCALL map_to_window, %1
+        pop eax
+%endmacro
+
 
 ;;; Takes amount of pages and return address of memory block if given size
 ;;; Returns 0 if amount of free memory is less
 ;;; Return 0 if there is no coherent block of input size
 ;;; If memory needed can be divided use get_one_page
 get_pages:
-        pusha
         mov dword eax, [esp + 4]        ; get size
+        pusha
         mov dword edx, 0x100000         ; set size to maximum
         xor edi, edi                    ; answer block
         xor esi, esi                    ; previous of answer block
@@ -36,7 +42,7 @@ get_pages:
         test ecx, ecx
         jz .exitloop
         ;; Map beginning of current block
-        CCALL map_to_window, ecx
+        SAFE_WINDOW ecx
         ;; Compare current size with needed amount
         cmp dword [WINDOW], eax
         jl .finishloop
@@ -56,7 +62,8 @@ get_pages:
         test edi, edi
         jz .fail
         ;; Map answer to window
-        CCALL map_to_window, edi
+
+        SAFE_WINDOW edi
         ;; Check if we need to remove whole block
         cmp edx, eax
         je .remove
@@ -78,7 +85,7 @@ get_pages:
         mov eax, edi
         jmp .exit
 .notfirst:
-        CCALL map_to_window, esi
+        SAFE_WINDOW esi
         ;; Set next of previous of answer to next of answer
         mov [WINDOW + 4], ecx
         mov eax, edi
@@ -104,7 +111,7 @@ put_pages:
         test eax, eax
         jz .exitloop
         ;; Map current block
-        CCALL map_to_window, eax
+        SAFE_WINDOW eax
         ;; Get its right bound
         mov dword edi, [WINDOW]
         sal dword edi, 12
@@ -118,7 +125,7 @@ put_pages:
         cmp ebx, eax
         je .eqrightbound
         ;; Just add new block and set its next to current
-        CCALL map_to_window, ecx
+        SAFE_WINDOW ecx
         ;; Put size
         mov dword ebx, [esp + 8]
         mov [WINDOW], ebx
@@ -130,7 +137,7 @@ put_pages:
         ;; Get size and next of current page
         mov dword edi, [WINDOW]
         mov dword esi, [WINDOW + 4]
-        CCALL map_to_window, ecx
+        SAFE_WINDOW ecx
         ;; Just add page with sum of sizes of current and to add and current's next
         mov dword ebx, [esp + 8]
         mov [WINDOW], ebx
@@ -157,19 +164,19 @@ put_pages:
         ;; Check if its beginning is equal to new current blocks end
         cmp edx, ebx
         jne .exit
-        CCALL map_to_window, edx
+        SAFE_WINDOW edx
         ;; Get next's size
         mov dword ecx, [WINDOW]
         ;; Get next's next
         mov dword edi, [WINDOW + 4]
-        CCALL map_to_window, eax
+        SAFE_WINDOW eax
         ;; Add next's size to current block
         add dword [WINDOW], ecx
         ;; Replace current's next with next's next
         mov dword [WINDOW + 4], edi
         jmp .exit
 .finishloop:
-        CCALL map_to_window, eax
+        SAFE_WINDOW eax
         ;; Set current to previous
         mov edx, eax
         ;; Set current next to current
@@ -178,7 +185,7 @@ put_pages:
 .exitloop:
         ;; If we are here, block to add is after the last block
         ;; Or there are no blocks
-        CCALL map_to_window, ecx
+        SAFE_WINDOW ecx
         ;; Just add new block with no next
         mov dword ebx, [esp + 8]
         mov dword [WINDOW], ebx
@@ -197,6 +204,6 @@ put_pages:
         jmp .exit
 .set_prev:
         ;; Map previous and set next to block to add
-        CCALL map_to_window, edx
+        SAFE_WINDOW edx
         mov [WINDOW + 4], ecx
         jmp .exit
