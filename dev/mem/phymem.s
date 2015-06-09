@@ -30,6 +30,7 @@ DEFAULT_ACCESS_MODE     equ 0x7
 ;;; Return 0 if there is no coherent block of input size
 ;;; If memory needed can be divided use get_one_page
 get_pages:
+        ;; xchg bx, bx
         mov dword eax, [esp + 4]        ; get size
 
         push edi
@@ -38,6 +39,8 @@ get_pages:
         push edx
         push ecx
 
+        
+        
         mov dword edx, 0x100000         ; set size to maximum
         xor edi, edi                    ; answer block
         xor esi, esi                    ; previous of answer block
@@ -85,7 +88,7 @@ get_pages:
         mov dword ecx, [WINDOW + 4]
         ;; Check if remove the first block
         test esi, esi
-        jz .notfirst
+        jnz .notfirst
         ;; Set next of answer as beginning
         mov [begin_page], ecx
         mov eax, edi
@@ -107,6 +110,7 @@ get_pages:
         jmp .exit
 ;;; Takes address and amount of pages of memory block and frees pages
 put_pages:
+        ;; xchg bx, bx
         mov dword ecx, [esp + 4]        ; get left bound of block to add
         mov dword ebx, [esp + 8]
         
@@ -153,7 +157,7 @@ put_pages:
 
         jmp .exit_with_prev
 .rightbound:
-        ;; If currents left bound is not equal to left bound of block to add
+        ;; If currents right bound is not equal to left bound of block to add
         ;; Can do nothing so continue
         cmp ecx, edi
         jne .finishloop
@@ -165,6 +169,7 @@ put_pages:
         ;; If not nothing to do - exit
         jz .exit
         ;; Fet right bound of new block
+        mov dword ebx, [WINDOW]
         sal dword ebx, 12
         add ebx, eax
         ;; Check if its beginning is equal to new current blocks end
