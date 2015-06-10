@@ -5,12 +5,16 @@ section .text
 %include "util/macro.inc"
 
 extern window
+extern page_directory
 extern get_pages
 extern put_pages
 
 global begin_page
 global map_to_window
 global init_mem_manager
+global map_page
+global unmap_page
+global get_physaddr
 
 KERNEL_PHY              equ 0x400000
 PAGE_SIZE               equ 0x1000
@@ -19,53 +23,10 @@ WINDOW                  equ 0xFFFFF000
 WINDOW_PAGE_NUMBER      equ 1023
 DEFAULT_ACCESS_MODE     equ 0x7
 
-;;; If current page directory stored in curr_page_dir and mapped
-;;; Return virtual address of memory with page table entry mapping it to WINDOW page
-;;; in eax
-%macro PAGE_ENTRY_POINTER 1
-        push %1
-        mov eax, %1
-        ;; Get second level page table index 
-        shr dword eax, 22
-
-        ;; Get physical address of second level page table
-        sal dword eax, 2
-        ;; Get current page table physical address
-        mov ecx, cr3
-        ;; Map it to window
-        CCALL map_to_window, ecx
-        add dword eax, WINDOW 
-        mov ecx, eax
-        mov dword eax, [eax]
-
-        ;; Check if second level page table is mapped
-        test eax, eax
-        jnz %%mapping
-        ;; If not get one physical page for it
-        ;; TODO Check if result is not -1
-        mov dword eax, 1
-        CCALL get_pages, eax
+%macro SAFE_WINDOW 1
         push eax
-        ;; Initialize first level page table with this new address
-        or eax, DEFAULT_ACCESS_MODE
-        mov [ecx], eax
+        CCALL map_to_window, %1
         pop eax
-%%mapping:
-        ;; Map page containing second level page table we need to WINDOW
-        push eax
-        and eax, WINDOW
-        CCALL map_to_window, eax
-        pop eax
-        ;; Put in eax current virtual address of second level table
-        or eax, WINDOW
-        
-        ;; Get index of entry in second level page table
-        pop ecx
-        shr dword ecx, 12
-        and dword ecx, 0x03FF
-        ;; Get virtual address of page table entry
-        sal dword ecx, 2
-        add eax, ecx
 %endmacro
 
 init_mem_manager:
@@ -127,65 +88,209 @@ init_mem_manager:
 ;;; Maps phyaddr to window virtaddr
 map_to_window:  
         mov eax, [esp + 4]
-        or eax, 0x7
+        or eax, DEFAULT_ACCESS_MODE
         mov [window], eax
         invlpg [WINDOW]
         ret
 
+;;; Gets new physical page, maps to window and cleans it
+%macro NEW_CLEAN_PHYSPAGE 0
+        CCALL get_pages, dword 1
+        test eax, eax
+        jz %%exit
+
+        push eax
+        push ecx
+        push edi
+
+        SAFE_WINDOW eax
+        mov dword ecx, 1024
+        mov edi, WINDOW
+        cld
+        stosd
+
+        pop edi
+        pop ecx
+        pop eax
+%%exit: 
+%endmacro
 
 ;;; Maps page phyaddr to virtadr with flags
-;;; map_page(phyaddr, virtaddr, flags)
+;;; int map_page(void*  virtaddr, void* phyaddr)
 map_page:
-        mov dword edx, [esp + 8]
+        ;; xchg bx, bx
 
-        PAGE_ENTRY_POINTER edx
-        ;; TODO check if pointer is not -1
-        mov edx, [esp + 4]                                      ; get phys addr
-        mov ecx, [esp + 12]
-        and dword ecx, 0xFFF                                    ; flags
-        or edx, ecx
-        or dword edx, 0x01
-        ;; set
+        mov dword eax, [esp + 4]
+        mov dword edx, [esp + 8]
+        push ecx
+        push edx
+        push eax
+
+        and dword eax, WINDOW
+
+        ;; Get current page table physical address and map it to window
+        mov ecx, cr3
+        SAFE_WINDOW ecx
+
+        ;; Get index of second level page table
+        ;; Get physical address of second level page table address
+        shr dword eax, 22
+        and dword eax, 0x3FF
+        sal dword eax, 2
+        add dword eax, WINDOW
+
+        mov dword ecx, [eax]
+        ;; Check if valid
+        and dword ecx, 1
+        ;; If not valid map physical page
+        test ecx, ecx
+        jnz .nomap
+        push eax
+        mov ebx, eax
+        NEW_CLEAN_PHYSPAGE
+
+        mov ecx, cr3
+        SAFE_WINDOW ecx
+        ;; Initialize first level page table with this new address
+        or eax, DEFAULT_ACCESS_MODE
+        mov [ebx], eax
+        pop eax
+.nomap:
+        mov dword ecx, [eax]
+        and dword ecx, WINDOW
+        SAFE_WINDOW ecx
+
+        pop eax
+        mov ecx, eax
+
+        shr dword eax, 12
+        and dword eax, 0x3FF
+
+        sal dword eax, 2
+        add dword eax, WINDOW
+
+        and dword edx, WINDOW
+        or dword edx, DEFAULT_ACCESS_MODE
+
         mov [eax], edx
 
         ;; Flushing to TLB
-        mov dword eax, [esp + 8]
-        invlpg [eax]
+        invlpg [ecx]
+
+        ;; Return zero if success
+        xor eax, eax
+.exit:
+        pop edx
+        pop ecx
+        ret
+.fail:
+        mov dword eax, -1
+        jmp .exit
+
+;;; Return address of physical page of given virtual page
+;;; void* get_physaddr(virtaddr);
+get_physaddr:  
+        ;; xchg bx, bx
+        mov dword eax, [esp + 4]
+        push ecx
+        push eax
+        and dword eax, WINDOW
+
+        ;; Get current page table physical address and map it to window
+        mov ecx, cr3
+        SAFE_WINDOW ecx
+
+        ;; Get index of second level page table
+        shr dword eax, 22
+        and dword eax, 0x3FF
+        ;; Get physical address of second level page table address
+        sal dword eax, 2
+        add dword eax, WINDOW
+
+        mov dword ecx, [eax]
+        mov eax, ecx
+        ;; Check if valid
+        and dword eax, 1
+        ;; If not valid return 0
+        test eax, eax
+        jnz .answer
+        pop eax
+        xor eax, eax
+        pop ecx
+        ret
+.answer:
+        and dword ecx, WINDOW
+        SAFE_WINDOW ecx
+
+        pop eax
+        shr dword eax, 12
+        and dword eax, 0x3FF
+
+        sal dword eax, 2
+        add dword eax, WINDOW
+
+        mov dword eax, [eax]
+        and dword eax, ~0xFFF
+
+        pop ecx
         ret
 
 ;;; Unmaps page with given address
 ;;; get_phys_page(virtaddr)
 unmap_page:     
-        mov dword ecx, [esp + 4]
-        PAGE_ENTRY_POINTER ecx
-        ;; TODO check if pointer is not -1
+        ;; xchg bx, bx
+        mov dword eax, [esp + 4]
+        push ecx
+        push edx
         push eax
-        mov eax, [eax]
-        and eax, WINDOW
-        mov dword ecx, 1
-        CCALL put_pages, eax, ecx
+        and dword eax, WINDOW
+
+        ;; Get current page table physical address and map it to window
+        mov ecx, cr3
+        SAFE_WINDOW ecx
+
+        ;; Get index of second level page table
+        shr dword eax, 22
+        and dword eax, 0x3FF
+        ;; Get physical address of second level page table address
+        sal dword eax, 2
+        add dword eax, WINDOW
+
+        mov dword ecx, [eax]
+        mov eax, ecx
+        ;; Check if valid
+        and dword eax, 1
+        ;; If not valid return 0
+        test eax, eax
+        jnz .answer
         pop eax
+        pop edx
+        pop ecx
+        ret
+.answer:
+        and dword ecx, WINDOW
+        SAFE_WINDOW ecx
+        pop eax
+        mov edx, eax
+        
+        shr dword eax, 12
+        and dword eax, 0x3FF
+
+        sal dword eax, 2
+        add dword eax, WINDOW
+
+        mov dword ecx, [eax]
+        and dword ecx, ~0xFFF
+
         mov dword [eax], 0
-        invlpg [eax]
+        invlpg [edx]
+
+        and dword ecx, WINDOW
+        CCALL put_pages, ecx, dword 1
+
+        pop edx
+        pop ecx
         ret
-
-;;; Return address of physical page mapped in given virtual page address
-;;; get_phys_page(virtaddr)
-get_phys_page:  
-        mov dword ecx, [esp + 4]
-
-        PAGE_ENTRY_POINTER ecx
-        ;; TODO check if pointer is not -1
-
-        ;; Get phys page
-        mov dword edx, [eax]
-        and dword edx, ~0xFFF
-        ;; Get offset
-        mov eax, [esp + 4]
-        and dword eax, 0xFFF
-        add eax, edx
-        ret
-
 
 align 4
 begin_page:             dd 0    ; first free block of physical memory
