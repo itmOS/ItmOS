@@ -1,6 +1,19 @@
+%include "tty/tty.inc"
+%include "util/macro.inc"
+
 section .text
 
 global get_from_scancode
+global buf_putc
+global buf_getc
+global buf_delc
+global buffer
+global bufsize
+global top
+global bottom
+        
+
+BUFSIZE         equ      1024
 
 get_from_scancode:
         mov eax, [esp + 4]
@@ -14,6 +27,136 @@ get_from_scancode:
         mov al, [scancodes + eax] 
 .exit:
         ret
+
+%macro CHECK_BOUNDS 0
+        push eax
+        push ecx
+        push ebx
+
+        mov dword eax, [bottom]
+        mov dword ecx, [top]
+        ;; Check if any bound equals max size
+        cmp eax, BUFSIZE
+        jne %%top
+        mov eax, 0
+%%top:  
+        cmp ecx, BUFSIZE
+        jne %%exit
+        mov ecx, 0
+
+%%exit: 
+        mov dword [bottom], eax
+        mov dword [top], ecx
+        mov dword ebx, [bufsize]
+
+        pop ebx
+        pop ecx
+        pop eax
+%endmacro
+
+buf_putc:
+        push ecx
+        ;; Check if top and bottom pointers are same
+        mov dword ecx, [top]
+        cmp dword ecx, [bottom]
+        jne .simple
+
+        ;; If so and and buffer is not full
+        mov dword ecx, [bufsize]
+        cmp ecx, BUFSIZE
+        jne .simple
+
+        ;; The top byte will be thrown away so move pointer
+        ;; And decrease size
+        inc dword [top]
+        dec dword [bufsize]
+.simple:
+        inc dword [bufsize]
+        mov dword ecx, [bottom]
+        mov byte [buffer + ecx], al
+        inc dword [bottom]
+        CHECK_BOUNDS
+        pop ecx
+        ret
+
+
+buf_delc:
+        push ecx
+        ;; Check if top and bottom pointers are same
+        mov dword ecx, [top]
+        cmp dword ecx, [bottom]
+        jne .simple
+
+        ;; If so and and buffer is not full
+        cmp dword [bufsize], 0
+        jne .simple
+        pop ecx
+        ret
+.simple:
+        ;; No delete if size zero
+        mov ecx, [bufsize]
+        test ecx, ecx
+        jz .exit
+        ;; No delete if last symbol is endl
+        mov dword ecx, [bottom]
+        test ecx, ecx
+        jnz .nzero
+        mov ecx, BUFSIZE
+.nzero:
+        dec ecx
+        xor eax, eax
+        mov al, [buffer + ecx]
+        cmp al, 10
+        je .exit
+        mov [bottom], ecx
+        dec dword [bufsize]
+.exit:
+        pop ecx
+        ret
+
+
+buf_getc:
+        push ecx
+        ;; Check if top and bottom pointers are same
+        mov dword ecx, [top]
+        cmp dword ecx, [bottom]
+        jne .simple
+
+        ;; If so and and buffer is not full
+        cmp dword [bufsize], 0
+        jne .simple
+        ;; There is nothing return 0
+        xor eax, eax
+        pop ecx
+        ret
+.simple:
+        ;; Taking character decreases size
+        dec dword [bufsize]
+        ;; Get symbol
+        mov dword ecx, [top]
+
+        xor eax, eax
+        mov al, [buffer + ecx]
+        inc dword [top]
+        CHECK_BOUNDS
+        pop ecx
+        ret
+
+align 4
+top:
+        dd 0
+bottom:
+        dd 0
+bufsize:
+        dd 0
+
+        ;; TODO alloc when possible
+buffer:     
+        times BUFSIZE db 0
+
+putoutstr:
+        db "%d %d %d ", 0
+
 
 scancodes:
 	db 0

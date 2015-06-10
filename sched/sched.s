@@ -22,11 +22,7 @@ init_tss:
 
 global sch_bootstrap
 sch_bootstrap:
-    xchg bx, bx
-    ;mov edi, userspace - KERNEL_VMA
-    ;mov esi, userspace
-    ;mov ecx, userspace_end - userspace
-    ;rep movsb
+    ;xchg bx, bx
     mov eax, tss_table
     switchTss
     add dword [proc_count], TSS_size
@@ -39,12 +35,6 @@ sch_bootstrap:
     mov dword [tss_table + TSS.stackTop - 16], userspace - KERNEL_VMA
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
     mov esp, [tss_table + TSS.esp]
-    ;mov cx, USERSPACE_DATA
-    ;mov ds, cx
-    ;mov es, cx
-    ;mov gs, cx
-    ;mov fs, cx
-    ;cli
     retf ; Diving into our first user process!
 
 userspace:

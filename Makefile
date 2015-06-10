@@ -19,7 +19,7 @@ BOCHS ?= bochs
 BOCHSFLAGS ?= -f res/bochsrc -q
 
 QEMU ?= qemu-system-x86_64
-QEMUFLAGS ?= -m 1024 -boot d
+QEMUFLAGS ?= -m 4096 -boot d
 
 PARTED ?= parted
 PARTEDFLAGS ?= mklabel msdos mkpart primary fat16 2048s 100%

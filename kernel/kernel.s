@@ -10,29 +10,28 @@ section .text
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
+extern kbd_register_tests
 
 ;;; Entry point of the kernel.
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
-    call logging_prelude
+	call logging_prelude
 
-    call ata_register_tests
-    call string_register_tests
-
+	call ata_register_tests
+	call string_register_tests
+	call kbd_register_tests
+	
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
-
-    push dword -80
-    push dword 70
-    push sprintf_test
-    CCALL tty_printf, sprintf_test, dword 70, dword -80
+	push dword -80
+	push dword 70
+	push sprintf_test
+	CCALL tty_printf, sprintf_test, dword 70, dword -80
     add eax, 12
     extern sch_bootstrap
     jmp sch_bootstrap
-
-	;jmp $
 
 logging_prelude:
 	LOG_SIMPLE prelude
@@ -51,5 +50,5 @@ lba: dd 200
 
 section .bss
 stack:
-        resd 0x1000
+		resd 0x1000
 stack_top:
