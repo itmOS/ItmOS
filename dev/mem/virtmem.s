@@ -286,8 +286,10 @@ unmap_page:
         invlpg [edx]
 
         and dword ecx, WINDOW
+	test ecx, ecx
+	jz .exit
         CCALL put_pages, ecx, dword 1
-
+.exit:
         pop edx
         pop ecx
         ret
