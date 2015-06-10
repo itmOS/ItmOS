@@ -60,8 +60,8 @@ _loader:
 	jmp 8:.continue
 
 .continue:
-    ; Why not get rid of that duct tape?
-    mov byte [page_directory + 7], 0
+    ;; Why not get rid of that duct tape?
+    ;mov byte [page_directory + 7], 0
 
     mov edi, gdt32.tss
     extern init_tss
@@ -85,7 +85,7 @@ page_directory:
         ;; bit 0: P  The kernel page is present.
         ;; This entry must be here -- otherwise the kernel will crash immediately after paging is
         ;; enabled because it can't fetch the next instruction! It's ok to unmap this page later.
-        dd 0x00000083
+        dd 0x00000087
         times (KERNEL_PAGE_NUMBER - 1) dd 0
         dd 0x00000083
         times (1024 - KERNEL_PAGE_NUMBER - 1) dd 0
@@ -96,8 +96,8 @@ gdt32:
         dq 0                    ; NULL - 0
         dq 0x00CF9A000000FFFF   ; CODE - 8
         dq 0x00CF92000000FFFF   ; DATA - 16
-        dq 0x00CCFA0000000000   ; userspace code - 24 | 3 = 27
-        dq 0x00CCF20000000000   ; userspace data - 32 | 3 = 35
+        dq 0x00CBFA000000FFFF   ; userspace code - 24 | 3 = 27
+        dq 0x00CBF2000000FFFF   ; userspace data - 32 | 3 = 35
 .tss:   dq 0x0000E90000000000
 .ptr:
         dw $ - gdt32 - 1

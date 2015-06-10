@@ -32,7 +32,7 @@ kernel_main:
     extern sch_bootstrap
     jmp sch_bootstrap
 
-	jmp $
+	;jmp $
 
 logging_prelude:
 	LOG_SIMPLE prelude

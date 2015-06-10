@@ -23,28 +23,37 @@ init_tss:
 global sch_bootstrap
 sch_bootstrap:
     xchg bx, bx
+    ;mov edi, userspace - KERNEL_VMA
+    ;mov esi, userspace
+    ;mov ecx, userspace_end - userspace
+    ;rep movsb
     mov eax, tss_table
     switchTss
     add dword [proc_count], TSS_size
-    mov ebx, tss_table + TSS.stackTop
-    mov [tss_table + TSS.esp0], ebx
+    mov dword [tss_table + TSS.esp0], tss_table + TSS.stackTop - 4
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
     mov eax, cr3
     mov [tss_table + TSS.cr3], eax
-    mov dword [tss_table + TSS.stackTop - 4], userspace
-    mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 4
+    mov dword [tss_table + TSS.stackTop - 4], USERSPACE_DATA
+    mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
+    mov dword [tss_table + TSS.stackTop - 16], userspace - KERNEL_VMA
+    mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
     mov esp, [tss_table + TSS.esp]
-    ret
+    ;mov cx, USERSPACE_DATA
+    ;mov ds, cx
+    ;mov es, cx
+    ;mov gs, cx
+    ;mov fs, cx
+    ;cli
+    retf ; Diving into our first user process!
 
 userspace:
-    xchg bx, bx
-    jmp userspace
+    ;xchg bx, bx
+    inc eax
+    jmp near userspace
 
-global exec
-exec:
-    push edi
-    push esi
-    push ebx
+global fork
+fork:
     mov ebx, TSS_size
     lock xadd [proc_count], ebx
     mov eax, [cur_process]
@@ -56,12 +65,10 @@ exec:
     ;DUP_PAGE_TABLE
     mov [tss_table + ebx + TSS.cr3], eax
     mov eax, [esp + 4]
-    ;mov [tss_table + ebx + TSS.eip], eax
+    mov ecx, [tss_table + ebx + TSS.esp]
+    mov [ecx], eax
     shr ebx, TSS_POWER
     mov byte [process_ready + ebx], 1
-    pop ebx
-    pop esi
-    pop edi
     ret
 
 global current_pid
@@ -92,9 +99,6 @@ context_switch:
     mov ecx, [eax + TSS.cr3]
     mov cr3, ecx
     mov esp, [eax + TSS.esp]
-    ; FIXME A very dangerous place!
-    ; We can receive a timer interrupt
-    ; right here.
     ret
 
 global waitpid
@@ -122,6 +126,7 @@ add_fd_object:
     lea esi, [tss_table + ecx + TSS.fdTable]
     mov edx, esi
     mov ecx, MAX_FD
+    xor eax, eax
     repnz lodsd
     test ecx, ecx
     jz .failure
