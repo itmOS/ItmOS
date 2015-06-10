@@ -29,7 +29,22 @@ DEFAULT_ACCESS_MODE     equ 0x7
         pop eax
 %endmacro
 
+%macro LOCK_MUTEX 0
+%%start:        
+        cmp byte [mutex], 0
+        je %%lock
+        hlt
+        jmp %%start
+%%lock:
+        mov byte [mutex], 1
+%endmacro
+
+%macro UNLOCK_MUTEX 0
+        mov byte [mutex], 0
+%endmacro
+
 init_mem_manager:
+        LOCK_MUTEX
         pusha
         ;; Get iterator on list of memory regions
         BOOTINFO_GET_MMAP_ITER eax
@@ -83,6 +98,7 @@ init_mem_manager:
         jmp .loop
 .exit:
         popa
+        UNLOCK_MUTEX
         ret
 
 ;;; Maps phyaddr to window virtaddr
@@ -118,6 +134,7 @@ map_to_window:
 ;;; Maps page phyaddr to virtadr with flags
 ;;; int map_page(void*  virtaddr, void* phyaddr)
 map_page:
+        LOCK_MUTEX
         ;; xchg bx, bx
 
         mov dword eax, [esp + 4]
@@ -182,6 +199,7 @@ map_page:
 .exit:
         pop edx
         pop ecx
+        UNLOCK_MUTEX
         ret
 .fail:
         mov dword eax, -1
@@ -190,6 +208,7 @@ map_page:
 ;;; Return address of physical page of given virtual page
 ;;; void* get_physaddr(virtaddr);
 get_physaddr:  
+        LOCK_MUTEX
         ;; xchg bx, bx
         mov dword eax, [esp + 4]
         push ecx
@@ -217,6 +236,7 @@ get_physaddr:
         pop eax
         xor eax, eax
         pop ecx
+        UNLOCK_MUTEX
         ret
 .answer:
         and dword ecx, WINDOW
@@ -233,11 +253,13 @@ get_physaddr:
         and dword eax, ~0xFFF
 
         pop ecx
+        UNLOCK_MUTEX
         ret
 
 ;;; Unmaps page with given address
 ;;; get_phys_page(virtaddr)
 unmap_page:     
+        LOCK_MUTEX
         ;; xchg bx, bx
         mov dword eax, [esp + 4]
         push ecx
@@ -266,6 +288,7 @@ unmap_page:
         pop eax
         pop edx
         pop ecx
+        UNLOCK_MUTEX
         ret
 .answer:
         and dword ecx, WINDOW
@@ -292,7 +315,9 @@ unmap_page:
 .exit:
         pop edx
         pop ecx
+        UNLOCK_MUTEX
         ret
 
 align 4
 begin_page:             dd 0    ; first free block of physical memory
+mutex:                  db 0

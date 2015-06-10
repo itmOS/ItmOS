@@ -24,12 +24,26 @@ DEFAULT_ACCESS_MODE     equ 0x7
         pop eax
 %endmacro
 
+%macro LOCK_MUTEX 0
+%%start:        
+        cmp byte [mutex], 0
+        je %%lock
+        hlt
+        jmp %%start
+%%lock:
+        mov byte [mutex], 1
+%endmacro
+
+%macro UNLOCK_MUTEX 0
+        mov byte [mutex], 0
+%endmacro
 
 ;;; Takes amount of pages and return address of memory block if given size
 ;;; Returns 0 if amount of free memory is less
 ;;; Return 0 if there is no coherent block of input size
 ;;; If memory needed can be divided use get_one_page
 get_pages:
+        LOCK_MUTEX
         ;; xchg bx, bx
         mov dword eax, [esp + 4]        ; get size
 
@@ -39,8 +53,6 @@ get_pages:
         push edx
         push ecx
 
-        
-        
         mov dword edx, 0x100000         ; set size to maximum
         xor edi, edi                    ; answer block
         xor esi, esi                    ; previous of answer block
@@ -104,12 +116,15 @@ get_pages:
         pop ebx
         pop esi
         pop edi
+        UNLOCK_MUTEX
         ret
 .fail:
         xor eax, eax
         jmp .exit
+
 ;;; Takes address and amount of pages of memory block and frees pages
 put_pages:
+        LOCK_MUTEX
         ;; xchg bx, bx
         mov dword ecx, [esp + 4]        ; get left bound of block to add
         mov dword ebx, [esp + 8]
@@ -204,6 +219,7 @@ put_pages:
         jmp .exit_with_prev
 .exit:
         popa
+        UNLOCK_MUTEX
         ret
 .exit_with_prev:
         ;; Check if has previous
@@ -217,3 +233,7 @@ put_pages:
         SAFE_WINDOW edx
         mov [WINDOW + 4], ecx
         jmp .exit
+
+
+mutex:
+        db 0
