@@ -3,6 +3,7 @@ section .text
 %include "tty/tty.inc"
 %include "dev/kbd/kbd.inc"
 %include "interrupts_macro.inc"
+%include "boot/boot.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -13,8 +14,30 @@ global SLAVE_PIC_MASK
 
 ;;; Gets number of interrupt in eax and calls handler for it
 interrupt_manager:
-        mov dword eax, [interrupt_handlers + eax * 4]
-        call eax
+        ;; TODO Maybe the following could be done
+        ;; in a more clever way?..
+        mov cx, ds
+        shl ecx, 16
+        mov cx, es
+        push ecx
+        mov cx, fs
+        shl ecx, 16
+        mov cx, gs
+        push ecx
+        mov cx, PRIVILEGED_DATA
+        mov ds, cx
+        mov es, cx
+        mov fs, cx
+        mov gs, cx
+        call dword [interrupt_handlers + eax * 4]
+        pop ecx
+        mov gs, cx
+        shr ecx, 16
+        mov fs, cx
+        pop ecx
+        mov es, cx
+        shr ecx, 16
+        mov ds, cx
         ret
 
 ;;; Handler for keyboard

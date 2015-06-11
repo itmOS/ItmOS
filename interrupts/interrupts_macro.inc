@@ -40,6 +40,16 @@ PIC2_PORT2                      equ     0xA1
         pusha
         mov eax, %1
         call interrupt_manager
+        popa
+        iret
+%endmacro
+
+;;; Universal handler
+;;; Saves registers, calls interrupt manager with interrupt number in eax, sends EOI
+%macro IRQINTHANDLER 1
+        pusha
+        mov eax, %1
+        call interrupt_manager
         ;; Send EOI(end of interrupt) to PIC
         NOTIFYPIC
         popa

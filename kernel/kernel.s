@@ -29,10 +29,9 @@ kernel_main:
 	push dword 70
 	push sprintf_test
 	CCALL tty_printf, sprintf_test, dword 70, dword -80
-	pop eax
-	pop eax
-	pop eax
-	jmp $
+    add eax, 12
+    extern sch_bootstrap
+    jmp sch_bootstrap
 
 logging_prelude:
 	LOG_SIMPLE prelude
