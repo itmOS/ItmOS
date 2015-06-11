@@ -30,6 +30,8 @@ global _loader
 global memory_map
 global page_directory
 global window
+global window2
+global last_page_dir
 _loader:
         ;; Disable interrupts
         cli
@@ -68,7 +70,6 @@ _loader:
 	jmp 8:kernel_main
 
 section .data
-;;; That seems to be only temporary page table, will be replaced in future
 ;;; The first 3G of the memory will be controlled by user,
 ;;; when the rest of space will be kernel's memory in every process.
 ;;; Also we map the first 1M one-by-one, to continue correct execution of the loaded code after setting the page table.
@@ -88,7 +89,9 @@ page_directory:
 		times (1024 - KERNEL_PAGE_NUMBER - 2) dd 0
 		dd (last_page_dir + DEFAULT_ACCESS_MODE  - KERNEL_VMA) ; mapping last page directory for 4 KB pages
 last_page_dir: 
-	        times (1024 - 1) dd 0
+	        times (1024 - 2) dd 0
+window2:
+                dd 0
                 ;; saving pointer to the last page to use it as a window
 window:
                 dd 0

@@ -10,6 +10,7 @@ int map_page(void* v, void* p);
 void unmap_page(void* v);
 void* get_physaddr(void* v);
 
+
 int test_mem_map_loaded(void) {
 	//tty_printf("Begin page: %d\n", begin_page);
 	if (begin_page != 0)

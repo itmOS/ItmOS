@@ -14,12 +14,21 @@ extern string_register_tests
 extern mem_register_tests
 extern init_mem_manager
 extern mmap_print
+extern init_kernel_page_table
+extern page_directory
+extern get_pages
+extern map_page
+extern dup_page_table
+extern new_page_table
+extern free_page_table
+
 
 ;;; Entry point of the kernel.
 kernel_main:
 	mov esp, stack_top
 	call init_interrupts
         call init_mem_manager
+        call init_kernel_page_table
 
         call logging_prelude
         call ata_register_tests
@@ -29,6 +38,7 @@ kernel_main:
         ATA_IDENTIFY
 
         TEST_RUN_ALL
+        xchg bx, bx
 
 	jmp $
 

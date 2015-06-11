@@ -1,4 +1,4 @@
-OBJ = phymem.o virtmem.o mem_test.o
+OBJ = phymem.o virtmem.o mem_test.o pagetable.o
 
 all: $(OBJ)
 

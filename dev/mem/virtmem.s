@@ -5,12 +5,14 @@ section .text
 %include "util/macro.inc"
 
 extern window
+extern window2
 extern page_directory
 extern get_pages
 extern put_pages
 
 global begin_page
 global map_to_window
+global map_to_window2
 global init_mem_manager
 global map_page
 global unmap_page
@@ -20,6 +22,7 @@ KERNEL_PHY              equ 0x400000
 PAGE_SIZE               equ 0x1000
 PAGE_SIZE_OFFSET        equ 12
 WINDOW                  equ 0xFFFFF000
+WINDOW2                 equ 0xFFFFE000
 WINDOW_PAGE_NUMBER      equ 1023
 DEFAULT_ACCESS_MODE     equ 0x7
 
@@ -27,6 +30,12 @@ DEFAULT_ACCESS_MODE     equ 0x7
         push eax
         CCALL map_to_window, %1
         pop eax
+%endmacro
+
+%macro SAFE_WINDOW2 1
+	push eax
+	CCALL map_to_window2, %1
+	pop eax
 %endmacro
 
 %macro LOCK_MUTEX 0
@@ -109,28 +118,35 @@ map_to_window:
         invlpg [WINDOW]
         ret
 
+;;; Maps phyaddr to window virtaddr
+map_to_window2:  
+        mov eax, [esp + 4]
+        or eax, DEFAULT_ACCESS_MODE
+        mov [window2], eax
+        invlpg [WINDOW2]
+        ret
+
 ;;; Gets new physical page, maps to window and cleans it
 %macro NEW_CLEAN_PHYSPAGE 0
         CCALL get_pages, dword 1
         test eax, eax
         jz %%exit
 
-        push eax
-        push ecx
-        push edi
+        pusha
 
         SAFE_WINDOW eax
         mov dword ecx, 1024
-        mov edi, WINDOW
-        cld
-        stosd
-
-        pop edi
-        pop ecx
-        pop eax
+%%loop:
+        test ecx, ecx
+        jz %%finish
+        dec ecx
+        mov dword [WINDOW + ecx * 4], 0
+        jmp %%loop
+%%finish
+        popa
 %%exit: 
 %endmacro
-
+        
 ;;; Maps page phyaddr to virtadr with flags
 ;;; int map_page(void*  virtaddr, void* phyaddr)
 map_page:
