@@ -98,7 +98,7 @@ gdt32:
         dq 0x00CF92000000FFFF   ; DATA - 16
         dq 0x00CBFA000000FFFF   ; userspace code - 24 | 3 = 27
         dq 0x00CBF2000000FFFF   ; userspace data - 32 | 3 = 35
-.tss:   dq 0x0000E90000000000
+.tss:   dq 0 ; It is an empty TSS descriptor. Just wait.
 .ptr:
         dw $ - gdt32 - 1
         dd (gdt32 - KERNEL_VMA)

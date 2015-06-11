@@ -130,6 +130,7 @@ init_interrupts:
 	ret
 
 section .data
+global interrupt_table
 interrupt_table:
 	times INTERRUPTS_TABLE_SIZE db 0
 .ptr:

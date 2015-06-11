@@ -6,6 +6,7 @@
 extern init_interrupts
 extern interrupt_manager
 extern interrupt_handlers
+extern interrupt_table
 
 extern MASTER_PIC_MASK
 extern SLAVE_PIC_MASK

@@ -1,4 +1,5 @@
 ;%include "util/mem/mem.inc"
+%include "interrupts/interrupts.inc"
 %include "boot/boot.inc"
 
 section .text
@@ -14,17 +15,26 @@ init_tss:
     shr ecx, 16
     mov edi, [tss_descr]
     mov [edi + 7], ch
+    mov [edi + 5], word 0x00E9
     mov [edi + 4], cl
     mov [edi + 2], ax
     mov cx, TSS_DESCR
     ltr cx
 %endmacro
 
+%macro loadUserspaceSel 0
+    mov cx, USERSPACE_DATA
+    mov ds, cx
+    mov es, cx
+    mov fs, cx
+    mov gs, cx
+%endmacro
+
 global sch_bootstrap
 sch_bootstrap:
     mov eax, tss_table
     switchTss
-    add dword [proc_count], TSS_size
+    add dword [proc_count], TSS_size * 2
     mov dword [tss_table + TSS.esp0], tss_table + TSS.stackTop - 4
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
     mov eax, cr3
@@ -33,7 +43,24 @@ sch_bootstrap:
     mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
     mov dword [tss_table + TSS.stackTop - 16], userspace - KERNEL_VMA
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
+
+    ;; Making a copy
+    mov edi, tss_table + TSS_size
+    mov esi, tss_table
+    mov ecx, TSS_size / 4
+    rep movsd
+    add dword [tss_table + TSS_size + TSS.esp0], TSS_size
+    add dword [tss_table + TSS_size + TSS.esp], TSS_size - 4
+    mov esp, tss_table + TSS_size + TSS.stackTop - 8
+    pushfd
+    mov dword [tss_table + TSS_size + TSS.stackTop - 16], USERSPACE_CODE
+    mov dword [tss_table + TSS_size + TSS.stackTop - 20], userspace - KERNEL_VMA
+
     mov esp, [tss_table + TSS.esp]
+    mov byte [process_ready], 1
+    mov byte [process_ready + 1], 1
+    IRQINITHANDLER context_switch, IRQ_BASE, 0x8E00
+    loadUserspaceSel
     retf ; Diving into our first user process!
 
 userspace:
@@ -67,26 +94,34 @@ current_pid:
 
 context_switch:
     mov eax, [cur_process]
-    mov [eax + TSS.esp], esp
-    mov ecx, eax
-    shl ecx, TSS_POWER
+    mov [tss_table + eax + TSS.esp], esp
+    shr eax, TSS_POWER
+    mov byte [process_ready + eax], 2
     mov edx, [proc_count]
+    shr edx, TSS_POWER
 .loop:
-    add eax, TSS_size
-    inc ecx
+    inc eax
     cmp eax, edx
     jl .check
     xor eax, eax
-    xor ecx, ecx
 .check:
-    cmp byte [process_ready + ecx], 0
+    mov bl, [process_ready + eax]
+    test bl, bl
     je .loop
+    shl eax, TSS_POWER
+    mov [cur_process], eax
     add eax, tss_table
     switchTss
     mov ecx, [eax + TSS.cr3]
     mov cr3, ecx
     mov esp, [eax + TSS.esp]
+    cmp bl, 2
+    jne .initialize
     ret
+.initialize:
+    NOTIFYPIC
+    loadUserspaceSel
+    iret
 
 global waitpid
 waitpid:
