@@ -66,7 +66,6 @@ current_pid:
     ret
 
 context_switch:
-    xchg bx, bx
     mov eax, [cur_process]
     mov [eax + TSS.esp], esp
     mov ecx, eax

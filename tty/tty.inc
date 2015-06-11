@@ -61,6 +61,13 @@ pop esi
 TTY_RESTORE_STYLE
 %endmacro
 
+%macro TTY_PUTS 1
+push esi
+mov edi, %1
+call tty_puts
+pop esi
+%endmacro
+
 %macro TTY_PUTC 1
 push eax
 mov al, %1
