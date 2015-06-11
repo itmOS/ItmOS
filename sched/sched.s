@@ -22,7 +22,6 @@ init_tss:
 
 global sch_bootstrap
 sch_bootstrap:
-    ;xchg bx, bx
     mov eax, tss_table
     switchTss
     add dword [proc_count], TSS_size
@@ -38,7 +37,6 @@ sch_bootstrap:
     retf ; Diving into our first user process!
 
 userspace:
-    ;xchg bx, bx
     inc eax
     jmp near userspace
 
