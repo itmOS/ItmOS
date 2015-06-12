@@ -1,6 +1,11 @@
  section .text
 
+%include "util/macro.inc"
+
 extern sbrk
+
+global malloc
+global free
 
 ;;; void* malloc(int len)
 ;;; returns pointer to memory chunk of len bytes
@@ -206,115 +211,3 @@ free:
 
 entry_point:
         dd 0
-
-;;; Takes address and amount of pages of memory block and frees pages
-put_pages:
-        xchg bx, bx
-        mov dword ecx, [esp + 4]        ; get left bound of block to add
-        mov dword eax, [esp + 8]
-        pusha
-        mov ebx, eax
-        mov esi, ebx                    ; save size
-        sal dword ebx, 12
-        add ebx, ecx                    ; get right bound of block to add
-        mov dword eax, [begin_page]     ; current block
-        xor edx, edx                    ; previous of current block
-.loop:
-        test eax, eax
-        jz .exitloop
-        ;; Map current block
-        SAFE_WINDOW eax
-        ;; Get its right bound
-        mov dword edi, [WINDOW]
-        sal dword edi, 12
-        add edi, eax
-
-        ;; Check if current block is on the left or on the right
-        cmp ecx, eax
-        jnl .rightbound
-
-        ;; Check if current blocks left bound equal to right bound of block to add
-        cmp ebx, eax
-        je .eqrightbound
-        ;; Just add new block and set its next to current
-        SAFE_WINDOW ecx
-        ;; Put size
-        mov [WINDOW], esi
-        ;; Put current block as next
-        mov [WINDOW + 4], eax
-
-        jmp .exit_with_prev
-.eqrightbound:   
-        ;; Get size and next of current page
-        mov dword edi, [WINDOW]
-        mov dword ebx, [WINDOW + 4]
-        SAFE_WINDOW ecx
-        ;; Just add page with sum of sizes of current and to add and current's next
-        mov [WINDOW], esi
-        add dword [WINDOW], edi
-        mov [WINDOW + 4], ebx
-
-        jmp .exit_with_prev
-.rightbound:
-        ;; If currents right bound is not equal to left bound of block to add
-        ;; Can do nothing so continue
-        cmp ecx, edi
-        jne .finishloop
-        ;; Otherwise add size of block to add to current(it is mapped to window already)
-        add dword [WINDOW], esi
-        mov dword edx, [WINDOW + 4]
-        ;; Check if there is next
-        test edx, edx
-        ;; If not nothing to do - exit
-        jz .exit
-        ;; Fet right bound of new block
-        mov dword ebx, [WINDOW]
-        sal dword ebx, 12
-        add ebx, eax
-        ;; Check if its beginning is equal to new current blocks end
-        cmp edx, ebx
-        jne .exit
-        SAFE_WINDOW edx
-        ;; Get next's size
-        mov dword ecx, [WINDOW]
-        ;; Get next's next
-        mov dword edi, [WINDOW + 4]
-        SAFE_WINDOW eax
-        ;; Add next's size to current block
-        add dword [WINDOW], ecx
-        ;; Replace current's next with next's next
-        mov dword [WINDOW + 4], edi
-        jmp .exit
-.finishloop:
-        SAFE_WINDOW eax
-        ;; Set current to previous
-        mov edx, eax
-        ;; Set current next to current
-        mov dword eax, [WINDOW + 4]
-        jmp .loop
-.exitloop:
-        ;; If we are here, block to add is after the last block
-        ;; Or there are no blocks
-        SAFE_WINDOW ecx
-        ;; Just add new block with no next
-        mov dword [WINDOW], esi
-        mov dword [WINDOW + 4], 0
-
-        jmp .exit_with_prev
-.exit:
-        popa
-        UNLOCK_MUTEX
-        ret
-.exit_with_prev:
-        ;; Check if has previous
-        test edx, edx
-        jnz .set_prev
-        ;; If not set begin page to point to block to add
-        mov dword [begin_page], ecx
-        jmp .exit
-.set_prev:
-        ;; Map previous and set next to block to add
-        SAFE_WINDOW edx
-        mov [WINDOW + 4], ecx
-        jmp .exit
-

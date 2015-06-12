@@ -26,12 +26,10 @@ extern free_page_table
 
 ;;; Entry point of the kernel.
 kernel_main:
-	xchg bx, bx
 	mov esp, stack_top
-	call init_interrupts
         call init_mem_manager
-        xchg bx, bx
         call init_kernel_page_table
+	call init_interrupts
 
         call logging_prelude
         call ata_register_tests
@@ -41,7 +39,6 @@ kernel_main:
         ATA_IDENTIFY
 
         TEST_RUN_ALL
-        xchg bx, bx
 
 	jmp $
 

@@ -47,9 +47,10 @@ PIC2_PORT2                      equ     0xA1
 
         ;; Saving handler to interrupt_handlers
         mov edx, %1
-        mov [interrupt_handlers + ecx * 4], dx
+	mov dword ebx, [interrupt_handlers]
+        mov [ebx + ecx * 4], dx
         shr edx, 16
-        mov [interrupt_handlers + ecx * 4 + 2], dx
+        mov [ebx + ecx * 4 + 2], dx
 
         mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
         

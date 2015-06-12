@@ -3,6 +3,7 @@ section .text
 %include "tty/tty.inc"
 %include "dev/kbd/kbd.inc"
 %include "interrupts_macro.inc"
+%include "util/macro.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -11,11 +12,12 @@ global interrupt_handlers
 global MASTER_PIC_MASK
 global SLAVE_PIC_MASK
 
-
+extern malloc
 
 ;;; Gets number of interrupt in eax and calls handler for it
 interrupt_manager:
-        mov dword eax, [interrupt_handlers + eax * 4]
+        mov dword ebx, [interrupt_handlers]
+        mov dword eax, [ebx + eax * 4]
         call eax
         ret
 
@@ -55,6 +57,9 @@ timer_int:
 init_interrupts:
         push eax
 
+        CCALL malloc, INTERRUPT_HANDLERS_SIZE
+        mov dword [interrupt_handlers], eax 
+        
         ;; Set IDT address 
 	lidt [interrupt_table.ptr]
 
@@ -110,7 +115,7 @@ interrupt_table:
         dd interrupt_table
 
 interrupt_handlers:
-	times INTERRUPT_HANDLERS_SIZE db 0
+        dd 0
 
 timer_symbol:	        db      'a'
 MASTER_PIC_MASK:        db     0x00
