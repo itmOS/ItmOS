@@ -19,17 +19,36 @@ new_page_table:
         NEW_CLEAN_PHYSPAGE
         
         push eax
+        push edx
+        push edi
         mov dword ecx, 768
 .loop:
         cmp ecx, 1024
-        je .exit
+        je .exitloop
         ;; Get address of second level page table from kernels
         mov dword eax, [page_directory + 4 * ecx]
         mov dword [WINDOW + 4 * ecx], eax
 
         inc ecx
         jmp .loop
+.exitloop:
+        mov dword ecx, 0
+.loop2:
+        cmp ecx, 1024
+        je .exit
+
+        CCALL get_pages, dword 1
+        mov edi, eax
+
+        mov edx, ecx
+        sal dword edx, 12
+
+        CCALL map_page, edx, edi, DEFAULT_ACCESS_MODE
+        inc ecx
+        jmp .loop2
 .exit:
+        pop edi
+        pop edx
         pop eax
         pop ecx
         ret

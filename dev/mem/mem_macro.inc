@@ -10,6 +10,19 @@ WINDOW_PAGE_NUMBER      equ 1023
 KERNEL_ACCESS_MODE      equ 0x3
 DEFAULT_ACCESS_MODE     equ 0x7
 
+%macro CLEAR 2
+        pusha
+        mov eax, %1
+        mov ecx, %2
+%%loop:
+        test ecx, ecx
+        jz %%exit
+        dec ecx
+        mov byte [eax + ecx], 0
+        jmp %%loop
+%%exit: 
+        popa
+%endmacro
 
 %macro SAFE_WINDOW 1
         push eax

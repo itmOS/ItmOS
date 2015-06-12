@@ -39,7 +39,7 @@ sch_bootstrap:
     add dword [proc_count], TSS_size
     mov dword [tss_table + TSS.esp0], tss_table + TSS.stackTop - 4
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
-    call new_page_table
+    mov eax, cr3
     mov [tss_table + TSS.cr3], eax
     mov dword [tss_table + TSS.stackTop - 4], USERSPACE_DATA
     mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
@@ -47,11 +47,12 @@ sch_bootstrap:
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
     mov byte [process_ready], 2
 
-    mov cr3, eax
     ADD_SYSTEM_FUNCTION 6, fork
     mov esp, [tss_table + TSS.esp]
+        xchg bx, bx
     IRQINITHANDLER context_switch, IRQ_BASE, 0x8E00
     loadUserspaceSel
+        xchg bx, bx
     retf ; Diving into our first user process!
 
 userspace:

@@ -25,20 +25,32 @@ extern new_page_table
 extern free_page_table
 
 
+extern mem_register_tests
+extern init_mem_manager
+extern mmap_print
+extern init_kernel_page_table
+extern page_directory
+extern get_pages
+extern map_page
+extern dup_page_table
+extern new_page_table
+extern free_page_table
+
+
 ;;; Entry point of the kernel.
 kernel_main:
 	mov esp, stack_top
 
-    ;xchg bx, bx
+        ;; xchg bx, bx
 
+        call init_mem_manager
+        call init_kernel_page_table
 	call init_interrupts
-    call init_mem_manager
-    call init_kernel_page_table
 	call logging_prelude
 
 	call ata_register_tests
 	call string_register_tests
-    call mem_register_tests
+        call mem_register_tests
 	call kbd_register_tests
 	
 	ATA_IDENTIFY
@@ -48,9 +60,9 @@ kernel_main:
 	push dword 70
 	push sprintf_test
 	CCALL tty_printf, sprintf_test, dword 70, dword -80
-    add eax, 12
-    extern sch_bootstrap
-    jmp sch_bootstrap
+        add eax, 12
+        extern sch_bootstrap
+        jmp sch_bootstrap
 
 logging_prelude:
 	LOG_SIMPLE prelude

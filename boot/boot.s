@@ -61,8 +61,6 @@ _loader:
     ;; Why not get rid of that duct tape?
     ;mov byte [page_directory + 7], 0
 
-    xchg bx, bx
-
 	;; Load descriptors table
 	lgdt [gdt32.ptr]
 
@@ -83,6 +81,8 @@ _loader:
 
     extern kernel_main
     jmp kernel_main
+
+
 
 section .data
 ;;; The first 3G of the memory will be controlled by user,

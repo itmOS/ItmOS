@@ -2,8 +2,10 @@ section .text
 
 %include "tty/tty.inc"
 %include "dev/kbd/kbd.inc"
+%include "dev/mem/mem_macro.inc"
 %include "interrupts_macro.inc"
 %include "boot/boot.inc"
+%include "util/macro.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -11,6 +13,8 @@ global interrupt_handlers
 
 global MASTER_PIC_MASK
 global SLAVE_PIC_MASK
+
+extern malloc
 
 %macro accessPrivilegedData 0
         ;; TODO Maybe the following could be done
@@ -44,7 +48,8 @@ global SLAVE_PIC_MASK
 ;;; Gets number of interrupt in eax and calls handler for it
 interrupt_manager:
         accessPrivilegedData
-        call dword [interrupt_handlers + eax * 4]
+        mov dword ebx, [interrupt_handlers]
+        mov dword eax, [ebx + eax * 4]
         restoreOrigDescriptors
         ret
 
@@ -103,9 +108,22 @@ system_interrupt:
 
 init_interrupts:
         push eax
+        push edi
+	xchg bx, bx
+        CCALL malloc, INTERRUPT_HANDLERS_SIZE
+        mov dword [interrupt_handlers], eax 
 
+        CCALL malloc, INTERRUPTS_TABLE_SIZE
+        mov dword [interrupt_table], eax 
+        CLEAR eax, dword INTERRUPTS_TABLE_SIZE
+        mov edi, eax
+
+        CCALL malloc, dword 6
+        mov word [eax], INTERRUPTS_TABLE_SIZE
+        mov dword [eax + 2], edi
+        
         ;; Set IDT address 
-	lidt [interrupt_table.ptr]
+	lidt [eax]
 
         ;; remap the PICs beyond 0x20
         ;; 0x20  because Intel have designated the first 32 interrupts as "reserved" for cpu exceptions
@@ -148,6 +166,7 @@ init_interrupts:
         ENABLE_MASTER_BIT 0x02
         IRQINITHANDLER keyboard_int, IRQ_BASE + 1, 0x8E00
 
+        pop edi
         pop eax
         ;; Enable interrupts
         sti
@@ -156,13 +175,9 @@ init_interrupts:
 section .data
 global interrupt_table
 interrupt_table:
-	times INTERRUPTS_TABLE_SIZE db 0
-.ptr:
-        dw INTERRUPTS_TABLE_SIZE
-        dd interrupt_table
-
+                        dd 0
 interrupt_handlers:
-	times INTERRUPT_HANDLERS_SIZE db 0
+                        dd 0
 
 global system_functions
 system_functions:
