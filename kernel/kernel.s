@@ -11,6 +11,7 @@ section .text
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
+
 extern mem_register_tests
 extern init_mem_manager
 extern mmap_print
@@ -25,6 +26,7 @@ extern free_page_table
 
 ;;; Entry point of the kernel.
 kernel_main:
+	xchg bx, bx
 	mov esp, stack_top
 	call init_interrupts
         call init_mem_manager

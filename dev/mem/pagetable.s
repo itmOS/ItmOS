@@ -87,10 +87,12 @@ dup_page_table:
         mov dword ecx, [esp + 4]
         SAFE_WINDOW2 ecx
 
+        ;; pointer answer is now in eax
+        pusha
+
         ;; Save pointers to new page table and given page table
         mov edi, eax
-        mov esi, dword [esp + 4]
-        pusha
+        mov esi, ecx
         ;; Init only first 3 GB(last 1 GB is already mapped, same as kernel)
         mov dword ecx, 768
 .loop:

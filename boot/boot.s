@@ -2,7 +2,6 @@ section .text
 
 %include "boot/boot.inc"
 %include "multiboot/multiboot.inc"
-
 extern kernel_main
 
 ;;; Multiboot constants http://nongnu.askapache.com/grub/phcoder/multiboot.pdf
@@ -63,11 +62,16 @@ _loader:
 	;; Save boot info address
 	BOOTINFO_LOAD ebx
 
+
+	;; Save boot info address
+	BOOTINFO_LOAD ebx
+
 	;; Start fetching instructions in kernel space.
 	;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
 	;; we need to do a long jump to the correct virtual address of kernel_main which is
 	;; approximately 0xC0100000.
 	jmp 8:kernel_main
+
 
 section .data
 ;;; The first 3G of the memory will be controlled by user,
