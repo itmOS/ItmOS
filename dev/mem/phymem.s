@@ -127,9 +127,9 @@ put_pages:
         LOCK_MUTEX
         ;; xchg bx, bx
         mov dword ecx, [esp + 4]        ; get left bound of block to add
-        mov dword ebx, [esp + 8]
-        
+        mov dword eax, [esp + 8]
         pusha
+        mov ebx, eax
         mov esi, ebx                    ; save size
         sal dword ebx, 12
         add ebx, ecx                    ; get right bound of block to add
