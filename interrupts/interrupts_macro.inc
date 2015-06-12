@@ -52,13 +52,14 @@ PIC2_PORT2                      equ     0xA1
         shr edx, 16
         mov [ebx + ecx * 4 + 2], dx
 
-        mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
+	mov dword ebx, [interrupt_table]
+        mov [ebx + ecx * 8], ax             ; set handler address 0..15 bits
         
-        mov word [interrupt_table + ecx * 8 + 2], 8     ; set code segment selector
-        mov word [interrupt_table + ecx * 8 + 4], %3    ; set type and attributes
+        mov word [ebx + ecx * 8 + 2], 8     ; set code segment selector
+        mov word [ebx + ecx * 8 + 4], %3    ; set type and attributes
 
         shr eax, 16                                      
-        mov [interrupt_table + ecx * 8 + 6], ax         ; set handler address 16..31 bits
+        mov [ebx + ecx * 8 + 6], ax         ; set handler address 16..31 bits
 
         popa
         sti

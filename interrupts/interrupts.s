@@ -2,6 +2,7 @@ section .text
 
 %include "tty/tty.inc"
 %include "dev/kbd/kbd.inc"
+%include "dev/mem/mem_macro.inc"
 %include "interrupts_macro.inc"
 %include "util/macro.inc"
 
@@ -53,15 +54,24 @@ timer_int:
 	mov [timer_symbol], al
         ret
 
-
 init_interrupts:
         push eax
+        push edi
 
         CCALL malloc, INTERRUPT_HANDLERS_SIZE
         mov dword [interrupt_handlers], eax 
+
+        CCALL malloc, INTERRUPTS_TABLE_SIZE
+        mov dword [interrupt_table], eax 
+        CLEAR eax, dword INTERRUPTS_TABLE_SIZE
+        mov edi, eax
+
+        CCALL malloc, dword 6
+        mov word [eax], INTERRUPTS_TABLE_SIZE
+        mov dword [eax + 2], edi
         
         ;; Set IDT address 
-	lidt [interrupt_table.ptr]
+	lidt [eax]
 
         ;; remap the PICs beyond 0x20
         ;; 0x20  because Intel have designated the first 32 interrupts as "reserved" for cpu exceptions
@@ -102,6 +112,7 @@ init_interrupts:
         ENABLE_MASTER_BIT 0x02
         INITHANDLER keyboard_int, IRQ_BASE + 1, 0x8E00
 
+        pop edi
         pop eax
         ;; Enable interrupts
         sti
@@ -109,13 +120,9 @@ init_interrupts:
 
 section .data
 interrupt_table:
-	times INTERRUPTS_TABLE_SIZE db 0
-.ptr:
-        dw INTERRUPTS_TABLE_SIZE
-        dd interrupt_table
-
+                        dd 0
 interrupt_handlers:
-        dd 0
+                        dd 0
 
 timer_symbol:	        db      'a'
 MASTER_PIC_MASK:        db     0x00
