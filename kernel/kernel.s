@@ -29,6 +29,8 @@ extern free_page_table
 kernel_main:
 	mov esp, stack_top
 
+    ;xchg bx, bx
+
 	call init_interrupts
     call init_mem_manager
     call init_kernel_page_table

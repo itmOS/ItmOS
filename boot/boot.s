@@ -34,17 +34,6 @@ _loader:
     ;; Disable interrupts
     cli
 
-	;; Load descriptors table
-	lgdt [gdt32.ptr - KERNEL_VMA]
-
-	mov ax, 16
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-	;; FIXME: Next line does not fail WTF?
-	mov ss, ax
-
     ;; Set up page table
     mov eax, (page_directory - KERNEL_VMA)
     mov cr3, eax
@@ -66,12 +55,28 @@ _loader:
     ;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
     ;; we need to do a long jump to the correct virtual address of the next instruction which is
     ;; approximately 0xC0100000.
-	jmp 8:.continue
+	jmp .continue
 
 .continue:
     ;; Why not get rid of that duct tape?
     ;mov byte [page_directory + 7], 0
 
+    xchg bx, bx
+
+	;; Load descriptors table
+	lgdt [gdt32.ptr]
+
+	mov ax, 16
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	;; FIXME: Next line does not fail WTF?
+	mov ss, ax
+
+    jmp 8:.moveCs
+
+.moveCs:
     mov edi, gdt32.tss
     extern init_tss
     call init_tss
@@ -117,4 +122,4 @@ gdt32:
 .tss:   dq 0 ; It is an empty TSS descriptor. Just wait.
 .ptr:
 		dw $ - gdt32 - 1
-		dd (gdt32 - KERNEL_VMA)
+		dd gdt32
