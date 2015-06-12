@@ -1,12 +1,27 @@
-OUTPUT = kernel.a
-OBJ = kernel.o
+MODULE_NAME = $(shell basename $(shell pwd))
+# Each of submodules Makefiles should provide default, "clean" and "list-objs" targets.
+# The "list-objs" target should just output all exported objects.
+SUBMODULES = main io
+
+OBJ = $(foreach DIR, $(SUBMODULES), $(shell $(MAKE) --no-print-directory -C $(DIR) list-objs))
+OUTPUT = $(MODULE_NAME).a
 
 all: $(OUTPUT)
 
 $(OUTPUT): $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^
 
-clean:
-	rm -f $(OBJ) $(OUTPUT)
+%.a: FORCE
+	@echo "Building $(MODULE_NAME)/$(shell dirname $@)"
+	@$(MAKE) --no-print-directory -C $(shell dirname $@)
 
-.PHONY: all clean
+FORCE:
+
+clean:
+	@for dir in $(SUBMODULES) ; do \
+		echo "Cleaning $(MODULE_NAME)/$$dir"; \
+		$(MAKE) --no-print-directory clean -C $$dir; \
+	done
+	rm -rf $(OUTPUT)
+
+.PHONY: all clean $(ISO)

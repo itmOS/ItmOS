@@ -66,32 +66,25 @@ log_warn:
 	pop esi
 	ret
 
+;; FIXME: There is no simple way to correctly restore
+;; style after vararg calls?
 ;;; void log_errf(char* fmt, ...)
 log_errf:
 	TTY_SAVE_STYLE
 	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_RED), err_message
-	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_RED)
-	call tty_printf
-	TTY_RESTORE_STYLE
-	ret
+	jmp tty_printf
 
 ;;; void log_warnf(char* fmt, ...)
 log_warnf:
 	TTY_SAVE_STYLE
 	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_YELLOW), warn_message
-	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_YELLOW)
-	call tty_printf
-	TTY_RESTORE_STYLE
-	ret
+	jmp tty_printf
 
 ;;; void log_okf(char* fmt, ...)
 log_okf:
 	TTY_SAVE_STYLE
 	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_GREEN), ok_message
-	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_GREEN)
-	call tty_printf
-	TTY_RESTORE_STYLE
-	ret
+	jmp tty_printf
 
 ;;; void log_bochs_console(char* message)
 ;;; Log to the bochs console
