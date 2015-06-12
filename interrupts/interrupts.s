@@ -51,8 +51,10 @@ timer_int:
 	mov [timer_symbol], al
         ret
 
+
 init_interrupts:
         push eax
+
         ;; Set IDT address 
 	lidt [interrupt_table.ptr]
 

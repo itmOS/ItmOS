@@ -21,6 +21,7 @@ global free_page_table
 WINDOW                  equ 0xFFFFF000
 WINDOW2                 equ 0xFFFFE000
 DEFAULT_ACESS_MODE      equ 0x7
+KERNEL_ACESS_MODE       equ 0x3
 
 %macro SAFE_WINDOW 1
         push eax
@@ -278,7 +279,7 @@ init_kernel_page_table:
 .init:
         ;; If not present get page and init 
         CCALL get_pages, dword 1
-        or eax, DEFAULT_ACESS_MODE
+        or eax, KERNEL_ACESS_MODE
         mov [page_directory + 4 * ecx], eax
         jmp .loop
 .exit:

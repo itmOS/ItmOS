@@ -125,7 +125,7 @@ get_pages:
 ;;; Takes address and amount of pages of memory block and frees pages
 put_pages:
         LOCK_MUTEX
-        ;; xchg bx, bx
+        xchg bx, bx
         mov dword ecx, [esp + 4]        ; get left bound of block to add
         mov dword eax, [esp + 8]
         pusha

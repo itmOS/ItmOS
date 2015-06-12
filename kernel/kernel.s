@@ -30,6 +30,7 @@ kernel_main:
 	mov esp, stack_top
 	call init_interrupts
         call init_mem_manager
+        xchg bx, bx
         call init_kernel_page_table
 
         call logging_prelude

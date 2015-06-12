@@ -24,7 +24,7 @@ PAGE_SIZE_OFFSET        equ 12
 WINDOW                  equ 0xFFFFF000
 WINDOW2                 equ 0xFFFFE000
 WINDOW_PAGE_NUMBER      equ 1023
-DEFAULT_ACCESS_MODE     equ 0x7
+DEFAULT_ACCESS_MODE     equ 0x3
 
 %macro SAFE_WINDOW 1
         push eax
@@ -101,7 +101,11 @@ init_mem_manager:
         ;; Get length in pages
         shr ecx, 12
         ; Put region of given base address and length
+        push eax
+        push ecx
         CCALL put_pages, ebx, ecx
+        pop ecx
+        pop eax
 .finish:
         BOOTINFO_MMAP_NEXT eax
         jmp .loop
@@ -159,8 +163,9 @@ map_page:
         mov dword edx, [esp + 16]
         mov dword ecx, [esp + 20]
         push ebx
+        push edi
         push eax
-
+        mov edi, ecx
         and dword eax, WINDOW
 
         ;; Get current page table physical address and map it to window
@@ -187,14 +192,15 @@ map_page:
         mov ecx, cr3
         SAFE_WINDOW ecx
         ;; Initialize first level page table with this new address
-        or eax, DEFAULT_ACCESS_MODE
+        mov ecx, edi
+        and dword ecx, 0xFFF
+        or eax, ecx
         mov [ebx], eax
         pop eax
 .nomap:
         mov dword ecx, [eax]
         and dword ecx, WINDOW
         SAFE_WINDOW ecx
-
         pop eax
         mov ecx, eax
 
@@ -205,7 +211,8 @@ map_page:
         add dword eax, WINDOW
 
         and dword edx, WINDOW
-        or dword edx, DEFAULT_ACCESS_MODE
+        and dword edi, 0xFFF
+        or dword edx, edi
 
         mov [eax], edx
 
@@ -215,6 +222,7 @@ map_page:
         ;; Return zero if success
         xor eax, eax
 .exit:
+        pop edi
         pop ebx
         pop edx
         pop ecx

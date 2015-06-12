@@ -6,7 +6,7 @@ void* get_pages(int len);
 
 void* begin_page;
 
-int map_page(void* v, void* p);
+int map_page(void* v, void* p, int flags);
 void unmap_page(void* v);
 void* get_physaddr(void* v);
 
@@ -104,7 +104,7 @@ int map_page_mapped_table() {
 	void* virt2 = (void*)(4294959104 - 4096);
 	void* phys = get_pages(1);
 	//tty_printf("Map: %d \n", phys);
-	int res = map_page(virt, phys);
+	int res = map_page(virt, phys, 0x7);
 	//tty_printf("Map: %d \n", res);
 	if (res < 0)
 		return -1;
@@ -116,7 +116,7 @@ int map_page_mapped_table() {
 	unmap_page(virt);
 	if (get_physaddr(virt) != 0)
 		return -1;
-	int res2 = map_page(virt2, phys);
+	int res2 = map_page(virt2, phys, 0x7);
 	//tty_printf("Map: %d \n", res2);
 	if (res2 < 0)
 		return -1;
@@ -130,7 +130,7 @@ int map_page_not_mapped_table() {
 	void* virt2 = (void*)(2147483648 + 4 * 4096);
 	void* phys = get_pages(1);
 	//tty_printf("Map: %d \n", phys);
-	int res = map_page(virt, phys);
+	int res = map_page(virt, phys, 0x7);
 	//tty_printf("Map: %d \n", res);
 	if (res < 0)
 		return -1;
@@ -142,7 +142,7 @@ int map_page_not_mapped_table() {
 	unmap_page(virt);
 	if (get_physaddr(virt) != 0)
 		return -1;
-	int res2 = map_page(virt2, phys);
+	int res2 = map_page(virt2, phys, 0x7);
 	//tty_printf("Map: %d \n", res2);
 	if (res2 < 0)
 		return -1;

@@ -1,5 +1,17 @@
 section .text
 
+%include "util/macro.inc"
+
+extern get_physaddr
+extern get_pages
+extern put_pages
+extern map_page
+extern unmap_page
+
+
+begin_entry:
+        dd 0
+
 ;;; void* kmalloc(int len)
 ;;; returns pointer to memory chunk of len bytes in kernel memory
 kmalloc:
@@ -26,7 +38,6 @@ kbrk:
         cmp dword eax, HEAP_BEGIN
         jng .fail
         ;; At heap begin there is some kernel info, so adreess must be shifted
-        add dword eax, 4
         cmp dword eax, 0xFFFFE000
         jnl .fail
 
@@ -41,7 +52,7 @@ kbrk:
         test eax, eax
         jz .fail
         mov ecx, eax
-        CCALL map_page, dword HEAP_BEGIN, eax
+        CCALL map_page, dword HEAP_BEGIN, eax, dword 0x3
         test eax, eax
         jnz .setbegin
         ;; If fail release physical page
@@ -67,7 +78,7 @@ kbrk:
         shl ebx, 12
         ;; If page containing address to shift break to equal to last mapped update the break info
         cmp edx, ebx
-        je .set_exit
+        je .setexit
         ;; If last mapped page index is greater than destination page we need to free
         cmp edx, ebx
         jg .free
@@ -86,7 +97,7 @@ kbrk:
         ;; Map to edx index page physical address we got
         push edx
         sal dword edx, 12
-        CCALL map_page, edx, eax
+        CCALL map_page, edx, eax, dword 0x7
         mov ecx, eax
         pop edx
         ;; If fail we need to free already mapped pages and free current physical page
