@@ -1,6 +1,7 @@
 %ifndef INTERRUPTS_INC
 %define INTERRUPTS_INC
 
+SYSTEM_FUNCTIONS_CNT            equ 64
 INTERRUPTS_TABLE_SIZE           equ	1 << 11
 INTERRUPT_HANDLERS_SIZE         equ	1 << 10
 
@@ -42,6 +43,20 @@ PIC2_PORT2                      equ     0xA1
         iret
 %endmacro
 
+%macro ADD_HANDLER 3
+        ;; Filling the IDT element
+        mov eax, %1                                  ; handler address
+        mov ecx, %2                                  ; interrupt index
+        mov [interrupt_table + ecx * 8], ax          ; set handler address 0..15 bits
+
+        mov word [interrupt_table + ecx * 8 + 2], 8  ; set code segment selector
+        mov word [interrupt_table + ecx * 8 + 4], %3 ; set type and attributes
+
+        shr eax, 16
+        mov [interrupt_table + ecx * 8 + 6], ax      ; set handler address 16..31 bits
+%endmacro
+
+
 ;;; Fills IDT element of given interrupt(2) using given handler(1), types and attributes(3)
 %macro INITHANDLER 3 
         cli
@@ -51,23 +66,13 @@ PIC2_PORT2                      equ     0xA1
 %%handler:  
         INTHANDLER %2
 %%skip:
-        ;; Filling the IDT element
-        mov eax, %%handler                              ; handler address
-        mov ecx, %2                                     ; interrupt index
+        ADD_HANDLER %%handler, %2, %3
 
         ;; Saving handler to interrupt_handlers
         mov edx, %1
         mov [interrupt_handlers + ecx * 4], dx
         shr edx, 16
         mov [interrupt_handlers + ecx * 4 + 2], dx
-
-        mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
-        
-        mov word [interrupt_table + ecx * 8 + 2], 8     ; set code segment selector
-        mov word [interrupt_table + ecx * 8 + 4], %3    ; set type and attributes
-
-        shr eax, 16                                      
-        mov [interrupt_table + ecx * 8 + 6], ax         ; set handler address 16..31 bits
 
         popa
         sti
@@ -82,30 +87,20 @@ PIC2_PORT2                      equ     0xA1
 %%handler:  
         IRQINTHANDLER %2
 %%skip:
-        ;; Filling the IDT element
-        mov eax, %%handler                              ; handler address
-        mov ecx, %2                                     ; interrupt index
-
+        ADD_HANDLER %%handler, %2, %3
         ;; Saving handler to interrupt_handlers
         mov edx, %1
         mov [interrupt_handlers + ecx * 4], dx
         shr edx, 16
         mov [interrupt_handlers + ecx * 4 + 2], dx
 
-        mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
-        
-        mov word [interrupt_table + ecx * 8 + 2], 8     ; set code segment selector
-        mov word [interrupt_table + ecx * 8 + 4], %3    ; set type and attributes
-
-        shr eax, 16                                      
-        mov [interrupt_table + ecx * 8 + 6], ax         ; set handler address 16..31 bits
-
         popa
         sti
 %endmacro
 
-
-
+%macro ADD_SYSTEM_FUNCTION 2
+    mov dword [system_functions + 4 * %1], %2
+%endmacro
 
 ;; Enables given bit on master PIC
 %macro ENABLE_MASTER_BIT 1

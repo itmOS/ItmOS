@@ -34,7 +34,7 @@ global sch_bootstrap
 sch_bootstrap:
     mov eax, tss_table
     switchTss
-    add dword [proc_count], TSS_size * 2
+    add dword [proc_count], TSS_size
     mov dword [tss_table + TSS.esp0], tss_table + TSS.stackTop - 4
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
     mov eax, cr3
@@ -43,29 +43,27 @@ sch_bootstrap:
     mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
     mov dword [tss_table + TSS.stackTop - 16], userspace - KERNEL_VMA
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
+    mov byte [process_ready], 2
 
-    ;; Making a copy
-    mov edi, tss_table + TSS_size
-    mov esi, tss_table
-    mov ecx, TSS_size / 4
-    rep movsd
-    add dword [tss_table + TSS_size + TSS.esp0], TSS_size
-    add dword [tss_table + TSS_size + TSS.esp], TSS_size - 4
-    mov esp, tss_table + TSS_size + TSS.stackTop - 8
-    pushfd
-    mov dword [tss_table + TSS_size + TSS.stackTop - 16], USERSPACE_CODE
-    mov dword [tss_table + TSS_size + TSS.stackTop - 20], userspace - KERNEL_VMA
-
+    ADD_SYSTEM_FUNCTION 6, fork
     mov esp, [tss_table + TSS.esp]
-    mov byte [process_ready], 1
-    mov byte [process_ready + 1], 1
     IRQINITHANDLER context_switch, IRQ_BASE, 0x8E00
     loadUserspaceSel
     retf ; Diving into our first user process!
 
 userspace:
-    inc eax
-    jmp near userspace
+    mov eax, 6
+    int 0x80
+    test eax, eax
+    jz .child
+.parent
+    mov byte [0xB8001], 'p'
+    inc byte [0xB8000]
+    jmp near .parent
+.child:
+    mov byte [0xB8001], 'c'
+    inc byte [0xB8000]
+    jmp near .child
 
 global fork
 fork:
@@ -74,16 +72,22 @@ fork:
     mov eax, [cur_process]
     mov ecx, TSS_size / 4
     lea esi, [tss_table + eax]
-    mov edx, [proc_count]
-    lea edi, [tss_table + eax]
+    lea edi, [tss_table + ebx]
     rep movsd
     ;DUP_PAGE_TABLE
-    mov [tss_table + ebx + TSS.cr3], eax
-    mov eax, [esp + 4]
-    mov ecx, [tss_table + ebx + TSS.esp]
-    mov [ecx], eax
+    ;mov [tss_table + ebx + TSS.cr3], eax
+    mov ecx, ebx
+    sub ecx, [cur_process]
+    add [tss_table + ebx + TSS.esp0], ecx
+    lea ecx, [ecx + esp - 4]
+    mov [tss_table + ebx + TSS.esp], ecx
+    mov dword [ecx], .childProcess
     shr ebx, TSS_POWER
     mov byte [process_ready + ebx], 1
+    mov eax, ebx
+    ret
+.childProcess:
+    xor eax, eax
     ret
 
 global current_pid
@@ -116,12 +120,10 @@ context_switch:
     mov cr3, ecx
     mov esp, [eax + TSS.esp]
     cmp bl, 2
-    jne .initialize
-    ret
-.initialize:
+    je .return
     NOTIFYPIC
-    loadUserspaceSel
-    iret
+.return:
+    ret
 
 global waitpid
 waitpid:
