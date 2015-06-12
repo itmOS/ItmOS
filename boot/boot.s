@@ -2,8 +2,6 @@ section .text
 
 %include "boot/boot.inc"
 
-extern kernel_main
-
 ;;; Multiboot constants http://nongnu.askapache.com/grub/phcoder/multiboot.pdf
 MODULEALIGN equ  1<<0
 MEMINFO     equ  1<<1
@@ -27,39 +25,50 @@ multiboot_header:
 
 global _loader
 _loader:
-        ;; Disable interrupts
-        cli
+    ;; Disable interrupts
+    cli
 
-        ;; Load descriptors table
-        lgdt [gdt32.ptr - KERNEL_VMA]
+    ;; Load descriptors table
+    lgdt [gdt32.ptr - KERNEL_VMA]
 
 	mov ax, 16
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
 	mov gs, ax
-	;; FIXME: Next line fails WTF?
-	;; mov ss, ax
+	;; FIXME: Next line does not fail WTF?
+	mov ss, ax
 
-        ;; Set up page table
-        mov eax, (page_directory - KERNEL_VMA)
-        mov cr3, eax
+    ;; Set up page table
+    mov eax, (page_directory - KERNEL_VMA)
+    mov cr3, eax
 
-        ;; Set PSE bit in CR4 to enable 4MB pages.
-        mov ecx, cr4
-        or ecx, 0x00000010
-        mov cr4, ecx
+    ;; Set PSE bit in CR4 to enable 4MB pages.
+    mov ecx, cr4
+    or ecx, 0x00000010
+    mov cr4, ecx
 
-        ;; Turn on paging
-        mov eax, cr0
-        or eax, 0x80000000
-        mov cr0, eax
+    ;; Turn on paging
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
 
 	;; Start fetching instructions in kernel space.
-        ;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
-        ;; we need to do a long jump to the correct virtual address of kernel_main which is
-        ;; approximately 0xC0100000.
-	jmp 8:kernel_main
+    ;; Since eip at this point holds the physical address of this command (approximately 0x00100000)
+    ;; we need to do a long jump to the correct virtual address of the next instruction which is
+    ;; approximately 0xC0100000.
+	jmp 8:.continue
+
+.continue:
+    ;; Why not get rid of that duct tape?
+    ;mov byte [page_directory + 7], 0
+
+    mov edi, gdt32.tss
+    extern init_tss
+    call init_tss
+
+    extern kernel_main
+    jmp kernel_main
 
 section .data
 ;;; That seems to be only temporary page table, will be replaced in future
@@ -76,7 +85,7 @@ page_directory:
         ;; bit 0: P  The kernel page is present.
         ;; This entry must be here -- otherwise the kernel will crash immediately after paging is
         ;; enabled because it can't fetch the next instruction! It's ok to unmap this page later.
-        dd 0x00000083
+        dd 0x00000087
         times (KERNEL_PAGE_NUMBER - 1) dd 0
         dd 0x00000083
         times (1024 - KERNEL_PAGE_NUMBER - 1) dd 0
@@ -87,6 +96,9 @@ gdt32:
         dq 0                    ; NULL - 0
         dq 0x00CF9A000000FFFF   ; CODE - 8
         dq 0x00CF92000000FFFF   ; DATA - 16
+        dq 0x00CBFA000000FFFF   ; userspace code - 24 | 3 = 27
+        dq 0x00CBF2000000FFFF   ; userspace data - 32 | 3 = 35
+.tss:   dq 0x0000E90000000000
 .ptr:
         dw $ - gdt32 - 1
         dd (gdt32 - KERNEL_VMA)

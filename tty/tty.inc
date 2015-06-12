@@ -5,6 +5,7 @@ extern tty_clear
 extern tty_set_style
 extern tty_puts
 extern tty_putc
+extern tty_delc
 extern tty_endl
 extern tty_save_style
 extern tty_restore_style
@@ -60,11 +61,22 @@ pop esi
 TTY_RESTORE_STYLE
 %endmacro
 
+%macro TTY_PUTS 1
+push esi
+mov edi, %1
+call tty_puts
+pop esi
+%endmacro
+
 %macro TTY_PUTC 1
 push eax
 mov al, %1
 call tty_putc
 pop eax
+%endmacro
+
+%macro TTY_DELC 0
+call tty_delc
 %endmacro
 
 %endif ; TTY_INC

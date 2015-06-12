@@ -1,1 +1,7 @@
 KERNEL_VMA          equ 0xC0000000 ; 3GB
+
+PRIVILEGED_CODE     equ 8
+PRIVILEGED_DATA     equ 16
+USERSPACE_CODE      equ 27
+USERSPACE_DATA      equ 35
+TSS_DESCR           equ 43

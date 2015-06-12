@@ -11,6 +11,7 @@ global kernel_main
 extern ata_register_tests
 extern string_register_tests
 extern list_register_tests
+extern kbd_register_tests
 
 ;;; Entry point of the kernel.
 kernel_main:
@@ -21,7 +22,8 @@ kernel_main:
 	call ata_register_tests
 	call string_register_tests
 	call list_register_tests
-	
+	call kbd_register_tests
+
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
@@ -29,10 +31,9 @@ kernel_main:
 	push dword 70
 	push sprintf_test
 	CCALL tty_printf, sprintf_test, dword 70, dword -80
-	pop eax
-	pop eax
-	pop eax
-	jmp $
+    add eax, 12
+    extern sch_bootstrap
+    jmp sch_bootstrap
 
 logging_prelude:
 	LOG_SIMPLE prelude

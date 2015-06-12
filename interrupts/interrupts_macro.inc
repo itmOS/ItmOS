@@ -26,6 +26,27 @@ PIC2_PORT2                      equ     0xA1
         pusha
         mov eax, %1
         call interrupt_manager
+        popa
+        iret
+%endmacro
+
+
+;;; Universal handler
+;;; Saves registers, calls interrupt manager with interrupt number in eax, sends EOI
+%macro IRQINTHANDLER 1
+        pusha
+        mov eax, %1
+        call interrupt_manager
+        popa
+        iret
+%endmacro
+
+;;; Universal handler
+;;; Saves registers, calls interrupt manager with interrupt number in eax, sends EOI
+%macro IRQINTHANDLER 1
+        pusha
+        mov eax, %1
+        call interrupt_manager
         ;; Send EOI(end of interrupt) to PIC
         NOTIFYPIC
         popa
@@ -62,6 +83,39 @@ PIC2_PORT2                      equ     0xA1
         popa
         sti
 %endmacro
+
+;;; Fills IDT element of given interrupt(2) using given handler(1), types and attributes(3)
+%macro IRQINITHANDLER 3 
+        cli
+        pusha
+        jmp %%skip
+        
+%%handler:  
+        IRQINTHANDLER %2
+%%skip:
+        ;; Filling the IDT element
+        mov eax, %%handler                              ; handler address
+        mov ecx, %2                                     ; interrupt index
+
+        ;; Saving handler to interrupt_handlers
+        mov edx, %1
+        mov [interrupt_handlers + ecx * 4], dx
+        shr edx, 16
+        mov [interrupt_handlers + ecx * 4 + 2], dx
+
+        mov [interrupt_table + ecx * 8], ax             ; set handler address 0..15 bits
+        
+        mov word [interrupt_table + ecx * 8 + 2], 8     ; set code segment selector
+        mov word [interrupt_table + ecx * 8 + 4], %3    ; set type and attributes
+
+        shr eax, 16                                      
+        mov [interrupt_table + ecx * 8 + 6], ax         ; set handler address 16..31 bits
+
+        popa
+        sti
+%endmacro
+
+
 
 
 ;; Enables given bit on master PIC

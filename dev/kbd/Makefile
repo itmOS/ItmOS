@@ -1,4 +1,4 @@
-OBJ = kbd.o
+OBJ = kbd.o kbd_buf_test.o
 
 all: $(OBJ)
 

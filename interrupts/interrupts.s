@@ -3,6 +3,7 @@ section .text
 %include "tty/tty.inc"
 %include "dev/kbd/kbd.inc"
 %include "interrupts_macro.inc"
+%include "boot/boot.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -11,12 +12,32 @@ global interrupt_handlers
 global MASTER_PIC_MASK
 global SLAVE_PIC_MASK
 
-
-
 ;;; Gets number of interrupt in eax and calls handler for it
 interrupt_manager:
-        mov dword eax, [interrupt_handlers + eax * 4]
-        call eax
+        ;; TODO Maybe the following could be done
+        ;; in a more clever way?..
+        mov cx, ds
+        shl ecx, 16
+        mov cx, es
+        push ecx
+        mov cx, fs
+        shl ecx, 16
+        mov cx, gs
+        push ecx
+        mov cx, PRIVILEGED_DATA
+        mov ds, cx
+        mov es, cx
+        mov fs, cx
+        mov gs, cx
+        call dword [interrupt_handlers + eax * 4]
+        pop ecx
+        mov gs, cx
+        shr ecx, 16
+        mov fs, cx
+        pop ecx
+        mov es, cx
+        shr ecx, 16
+        mov ds, cx
         ret
 
 ;;; Handler for keyboard
@@ -29,8 +50,16 @@ keyboard_int:
         add esp, 4
         test al, al
         jz .exit
-
+        
+        mov dword ecx, 8
+        cmp al, cl
+        je .backspace
+        KBDBUF_PUTC al
 	TTY_PUTC al
+        jmp .exit
+.backspace:
+	TTY_DELC
+        KBDBUF_DELC
 .exit:
         ret
 
@@ -90,10 +119,10 @@ init_interrupts:
 
         ;; Set handler for timer interrupts and enable them
         ENABLE_MASTER_BIT 0x01
-        INITHANDLER timer_int, IRQ_BASE, 0x8E00
+        IRQINITHANDLER timer_int, IRQ_BASE, 0x8E00
         ;; Set handler for keyboard interrupts and enable them
         ENABLE_MASTER_BIT 0x02
-        INITHANDLER keyboard_int, IRQ_BASE + 1, 0x8E00
+        IRQINITHANDLER keyboard_int, IRQ_BASE + 1, 0x8E00
 
         pop eax
         ;; Enable interrupts
