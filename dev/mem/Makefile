@@ -1,4 +1,4 @@
-OBJ = phymem.o virtmem.o mem_test.o pagetable.o kernel_allocation.o
+OBJ = phymem.o virtmem.o mem_test.o pagetable.o brk.o
 
 all: $(OBJ)
 
