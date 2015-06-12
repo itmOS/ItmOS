@@ -3,12 +3,9 @@ section .text
 %include "multiboot/multiboot.inc"
 %include "tty/tty.inc"
 %include "util/macro.inc"
-
-extern window
-extern window2
-extern page_directory
-extern get_pages
-extern put_pages
+%include "dev/mem/phymem.inc"
+%include "dev/mem/bootmem.inc"
+%include "dev/mem/mem_macro.inc"
 
 global begin_page
 global map_to_window
@@ -17,40 +14,6 @@ global init_mem_manager
 global map_page
 global unmap_page
 global get_physaddr
-
-KERNEL_PHY              equ 0x400000
-PAGE_SIZE               equ 0x1000
-PAGE_SIZE_OFFSET        equ 12
-WINDOW                  equ 0xFFFFF000
-WINDOW2                 equ 0xFFFFE000
-WINDOW_PAGE_NUMBER      equ 1023
-DEFAULT_ACCESS_MODE     equ 0x3
-
-%macro SAFE_WINDOW 1
-        push eax
-        CCALL map_to_window, %1
-        pop eax
-%endmacro
-
-%macro SAFE_WINDOW2 1
-	push eax
-	CCALL map_to_window2, %1
-	pop eax
-%endmacro
-
-%macro LOCK_MUTEX 0
-%%start:        
-        cmp byte [mutex], 0
-        je %%lock
-        hlt
-        jmp %%start
-%%lock:
-        mov byte [mutex], 1
-%endmacro
-
-%macro UNLOCK_MUTEX 0
-        mov byte [mutex], 0
-%endmacro
 
 init_mem_manager:
         LOCK_MUTEX
@@ -117,7 +80,7 @@ init_mem_manager:
 ;;; Maps phyaddr to window virtaddr
 map_to_window:  
         mov eax, [esp + 4]
-        or eax, DEFAULT_ACCESS_MODE
+        or eax, KERNEL_ACCESS_MODE
         mov [window], eax
         invlpg [WINDOW]
         ret
@@ -125,32 +88,11 @@ map_to_window:
 ;;; Maps phyaddr to window virtaddr
 map_to_window2:  
         mov eax, [esp + 4]
-        or eax, DEFAULT_ACCESS_MODE
+        or eax, KERNEL_ACCESS_MODE
         mov [window2], eax
         invlpg [WINDOW2]
         ret
 
-;;; Gets new physical page, maps to window and cleans it
-%macro NEW_CLEAN_PHYSPAGE 0
-        CCALL get_pages, dword 1
-        test eax, eax
-        jz %%exit
-
-        pusha
-
-        SAFE_WINDOW eax
-        mov dword ecx, 1024
-%%loop:
-        test ecx, ecx
-        jz %%finish
-        dec ecx
-        mov dword [WINDOW + ecx * 4], 0
-        jmp %%loop
-%%finish
-        popa
-%%exit: 
-%endmacro
-        
 ;;; Maps page phyaddr to virtadr with flags
 ;;; int map_page(void*  virtaddr, void* phyaddr, int flags)
 map_page:

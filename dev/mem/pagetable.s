@@ -2,59 +2,15 @@ section .text
 
 %include "tty/tty.inc"
 %include "util/macro.inc"
-
-extern page_directory
-extern window
-extern window2
-extern get_pages
-extern put_pages
-extern map_to_window
-extern map_to_window2
-extern last_page_dir
-
+%include "dev/mem/mem_macro.inc"
+%include "dev/mem/virtmem.inc"
+%include "dev/mem/phymem.inc"
+%include "dev/mem/bootmem.inc"
 
 global init_kernel_page_table
 global new_page_table
 global dup_page_table
 global free_page_table
-
-WINDOW                  equ 0xFFFFF000
-WINDOW2                 equ 0xFFFFE000
-DEFAULT_ACESS_MODE      equ 0x7
-KERNEL_ACESS_MODE       equ 0x3
-
-%macro SAFE_WINDOW 1
-        push eax
-        CCALL map_to_window, %1
-        pop eax
-%endmacro
-
-%macro SAFE_WINDOW2 1
-	push eax
-	CCALL map_to_window2, %1
-	pop eax
-%endmacro
-
-;;; Gets new physical page, maps to window and cleans it
-%macro NEW_CLEAN_PHYSPAGE 0
-        CCALL get_pages, dword 1
-        test eax, eax
-        jz %%exit
-
-        pusha
-
-        SAFE_WINDOW eax
-        mov dword ecx, 1024
-%%loop:
-        test ecx, ecx
-        jz %%finish
-        dec ecx
-        mov dword [WINDOW + ecx * 4], 0
-        jmp %%loop
-%%finish
-        popa
-%%exit: 
-%endmacro
 
 ;;; Creates new page table with mapped last 1 GB same as current
 ;;; void* new_page_table();
@@ -112,7 +68,7 @@ dup_page_table:
 .init:
         ;; If not present get page and init 
         CCALL get_pages, dword 1
-        or eax, DEFAULT_ACESS_MODE
+        or eax, DEFAULT_ACCESS_MODE
         mov [WINDOW + 4 * ecx], eax
         ;; Than we need to remap second level pages in eax from ebx
         mov dword ebx, [WINDOW2 + 4 * ecx]
@@ -136,7 +92,7 @@ dup_page_table:
         jz .finishloop2
         ;; If not get page for initialization
         CCALL get_pages, dword 1
-        or eax, DEFAULT_ACESS_MODE
+        or eax, DEFAULT_ACCESS_MODE
         ;; Than need to memcpy content of source page to destination page
         mov dword [WINDOW + 4 * edx], eax
         mov dword ebx, [WINDOW2 + 4 * edx]
@@ -279,12 +235,9 @@ init_kernel_page_table:
 .init:
         ;; If not present get page and init 
         CCALL get_pages, dword 1
-        or eax, KERNEL_ACESS_MODE
+        or eax, KERNEL_ACCESS_MODE
         mov [page_directory + 4 * ecx], eax
         jmp .loop
 .exit:
         popa
         ret
-
-str_out:
-        db "%u %d ", 10, 0

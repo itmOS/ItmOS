@@ -1,42 +1,14 @@
-
 %include "multiboot/multiboot.inc"
 %include "tty/tty.inc"
 %include "util/macro.inc"
-
-extern window
-extern begin_page
-extern map_to_window
+%include "dev/mem/mem_macro.inc"
+%include "dev/mem/bootmem.inc"
+%include "dev/mem/virtmem.inc"
 
 global get_pages
 global put_pages
 
 section .text
-KERNEL_PHY              equ 0x400000
-PAGE_SIZE               equ 0x1000
-PAGE_SIZE_OFFSET        equ 12
-WINDOW                  equ 0xFFFFF000
-WINDOW_PAGE_NUMBER      equ 1023
-DEFAULT_ACCESS_MODE     equ 0x7
-
-%macro SAFE_WINDOW 1
-        push eax
-        CCALL map_to_window, %1
-        pop eax
-%endmacro
-
-%macro LOCK_MUTEX 0
-%%start:        
-        cmp byte [mutex], 0
-        je %%lock
-        hlt
-        jmp %%start
-%%lock:
-        mov byte [mutex], 1
-%endmacro
-
-%macro UNLOCK_MUTEX 0
-        mov byte [mutex], 0
-%endmacro
 
 ;;; Takes amount of pages and return address of memory block if given size
 ;;; Returns 0 if amount of free memory is less
