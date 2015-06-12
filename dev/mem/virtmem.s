@@ -148,15 +148,17 @@ map_to_window2:
 %endmacro
         
 ;;; Maps page phyaddr to virtadr with flags
-;;; int map_page(void*  virtaddr, void* phyaddr)
+;;; int map_page(void*  virtaddr, void* phyaddr, int flags)
 map_page:
         LOCK_MUTEX
         ;; xchg bx, bx
 
-        mov dword eax, [esp + 4]
-        mov dword edx, [esp + 8]
         push ecx
         push edx
+        mov dword eax, [esp + 12]
+        mov dword edx, [esp + 16]
+        mov dword ecx, [esp + 20]
+        push ebx
         push eax
 
         and dword eax, WINDOW
@@ -213,6 +215,7 @@ map_page:
         ;; Return zero if success
         xor eax, eax
 .exit:
+        pop ebx
         pop edx
         pop ecx
         UNLOCK_MUTEX
@@ -273,7 +276,7 @@ get_physaddr:
         ret
 
 ;;; Unmaps page with given address
-;;; get_phys_page(virtaddr)
+;;; unmap_page(virtaddr)
 unmap_page:     
         LOCK_MUTEX
         ;; xchg bx, bx
