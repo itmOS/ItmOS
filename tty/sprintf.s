@@ -55,6 +55,48 @@ ulltoa: push ebp
         pop ebp
         ret
 
+; Print the string if the $esi points to "%s".
+; \see ullformat
+; \returns eax == 0 if string was successfully parsed
+sformat:
+        push ebp
+        mov ebp, esp
+        push esi
+        push edi
+        push edx
+
+        lodsb
+        cmp al, 's'
+        jne .not_string
+        ; should output string
+        mov edx, [ebx]
+        add ebx, 4
+        .while_not_zero:
+        mov al, [edx]
+        test al, al
+        jz .end_while
+        stosb
+        inc edx
+        jmp .while_not_zero
+        .end_while:
+        ;; FIXME: Don't get why we need two following lines
+        mov eax, 1
+        stosb
+        xor eax, eax
+        jmp .exit
+
+        .not_string:
+        mov esi, [ebp - 4]
+        mov edi, [ebp - 8];
+        mov eax, 1
+
+        .exit:
+
+        pop edx
+        add esp, 8
+        pop ebp
+        ret
+
 ; Format the number according to record in $esi.
 ; Called by sprintf, works with registers in place.
 ; Does not get any arguments from stack or preserve registers;
@@ -153,6 +195,8 @@ ullformat:
         cmp edx, 0
         jg ..@printPlus
         jnz ..@printMinus
+        test bl, LONG_LONG
+        jnz ..@printPlus
         cmp eax, 0
         jge ..@printPlus
 ..@printMinus:
@@ -296,12 +340,16 @@ sprintf:
         cmp al, '%'
         jne ..@justPrint
         ; it pretends to be a sequence
+        call sformat
+        test eax, eax
+        jz .end
         call ullformat
         ; move edi to the end of output
         mov ecx, 0x7fffffff
         cld
         xor al, al
         repne scasb
+        .end:
         dec edi
         jmp .loop
 ..@justPrint:

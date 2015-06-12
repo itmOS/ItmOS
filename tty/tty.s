@@ -32,7 +32,7 @@ tty_printf:
 	mov ebp, esp
 	push esi
 
-	sub esp, screen_width
+	sub esp, printf_maxlen
 	lea esi, [ebp + 12]
 	push esi
 	sub esi, 4
@@ -45,7 +45,7 @@ tty_printf:
 	mov esi, esp
 	call tty_puts
 	
-	mov esi, [esp + screen_width]
+	mov esi, [esp + printf_maxlen]
 	mov esp, ebp
 	pop ebp
 	ret
@@ -204,6 +204,7 @@ video_start: equ 0xB8000 ;; (KERNEL_VMA + 0xB8000)
 screen_width: equ 80
 screen_height: equ 25
 screen_size: equ screen_width * screen_height
+printf_maxlen: equ screen_size
 video_memory_size_d: equ screen_size / 2
 
 section .data

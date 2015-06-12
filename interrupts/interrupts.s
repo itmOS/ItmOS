@@ -103,6 +103,7 @@ system_interrupt:
 
 init_interrupts:
         push eax
+
         ;; Set IDT address 
 	lidt [interrupt_table.ptr]
 

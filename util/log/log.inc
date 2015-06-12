@@ -7,6 +7,9 @@ extern log_ok
 extern log_err
 extern log_warn
 extern log_bochs_console
+extern log_errf
+extern log_warnf
+extern log_okf
 
 %macro LOG_OK 1
 push %1
