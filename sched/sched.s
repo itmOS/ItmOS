@@ -97,7 +97,6 @@ writeScreen:
     ret
 
 fork:
-    xchg bx, bx
     mov ebx, TSS_size
     lock xadd [proc_count], ebx
     mov eax, [cur_process]
@@ -128,7 +127,6 @@ current_pid:
     ret
 
 context_switch:
-    xchg bx, bx
     mov eax, [cur_process]
     mov [tss_table + eax + TSS.esp], esp
     shr eax, TSS_POWER
