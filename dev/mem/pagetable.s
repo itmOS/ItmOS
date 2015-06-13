@@ -32,7 +32,7 @@ new_page_table:
         inc ecx
         jmp .loop
 .exitloop:
-        mov dword ecx, 0
+        mov dword ecx, 1
 .loop2:
         cmp ecx, 1024
         je .exit
