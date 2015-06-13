@@ -105,8 +105,11 @@ userspace_end
 exit:
     mov eax, [cur_process]
     mov dword [tss_table + TSS.status + eax], edi
+.waitHere:
     sti
     hlt
+    NOTIFYPIC
+    jmp .waitHere
 
 writeScreen:
     cmp edi, 2
@@ -138,13 +141,13 @@ fork:
     add [tss_table + ebx + TSS.esp0], ecx
     lea ecx, [ecx + esp - 4]
     mov [tss_table + ebx + TSS.esp], ecx
-    mov dword [tss_table + ebx + TSS.status], -1
     mov dword [ecx], .childProcess
     shr ebx, TSS_POWER
-    mov byte [process_ready + ebx], 1
+    mov byte [process_ready + ebx], 2
     mov eax, ebx
     ret
 .childProcess:
+    NOTIFYPIC
     xor eax, eax
     ret
 .failure:
@@ -172,9 +175,9 @@ context_switch:
     cmp eax, edx
     jl .check
     xor eax, eax
+.check:
     cmp eax, ecx
     je .shutdown
-.check:
     mov bl, [process_ready + eax]
     test bl, bl
     je .loop
@@ -189,17 +192,13 @@ context_switch:
     mov ecx, [eax + TSS.cr3]
     mov cr3, ecx
     mov esp, [eax + TSS.esp]
-    cmp bl, 2
-    je .return
-    NOTIFYPIC
 .return:
     ret
 .shutdown:
-    xchg bx, bx
     mov dword [shutdown], 1
     NOTIFYPIC
     sti
-.haltLoop
+.haltLoop:
     hlt
     jmp .haltLoop
 
