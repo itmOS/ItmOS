@@ -17,7 +17,11 @@ global free_page_table
 new_page_table:
         push ecx
         NEW_CLEAN_PHYSPAGE
-        
+        test eax, eax
+        jnz .continue
+        pop ecx
+        ret
+.continue:
         push eax
         push edx
         push edi
@@ -35,6 +39,9 @@ new_page_table:
 .exitloop:
         ;; Get second level page table for 4 MB
         NEW_CLEAN_PHYSPAGE
+        test eax, eax
+        jz .fail
+        
         ;; Save its physical address
         mov ecx, eax
         ;; Get first level page table physical address
@@ -59,6 +66,8 @@ new_page_table:
         je .exit
         ;; Get page
         NEW_CLEAN_PHYSPAGE
+        test eax, eax
+        jz .fail
         ;; Add flags
         or dword eax, DEFAULT_ACCESS_MODE
         ;; And put it into second level table
@@ -72,13 +81,25 @@ new_page_table:
         pop eax
         pop ecx
         ret
+.fail:
+        pop edi
+        pop edx
+        pop eax
+        pop ecx
+        CCALL free_page_table, eax
+        xor eax, eax
+        ret
 
 ;;; Duplicates page table(physical address): maps first 3GB to new pages and copies data; maps last 1 GB to same pages
 ;;; void* dup_page_table(void* table);
 dup_page_table:
         push ecx
         NEW_CLEAN_PHYSPAGE
-        
+        test eax, eax
+        jnz .continue
+        pop ecx
+        ret
+.continue:
         push eax
         mov dword ecx, 768
 .looploop:
@@ -123,6 +144,8 @@ dup_page_table:
 .init:
         ;; If not present get page and init 
         NEW_CLEAN_PHYSPAGE
+        test eax, eax
+        jz .fail
         SAFE_WINDOW edi
         or eax, DEFAULT_ACCESS_MODE
         mov [WINDOW + 4 * ecx], eax
@@ -149,6 +172,8 @@ dup_page_table:
         jz .finishloop2
         ;; If not get page for initialization
         NEW_CLEAN_PHYSPAGE
+        test eax, eax
+        jz .fail
         SAFE_WINDOW ebp
         or eax, DEFAULT_ACCESS_MODE
         ;; Than need to memcpy content of source page to destination page
@@ -179,6 +204,11 @@ dup_page_table:
         jmp .loop
 .exit:
         popa
+        ret
+.fail:
+        popa
+        CCALL free_page_table, eax
+        xor eax, eax
         ret
 
 ;;; Frees given page table(physical address): unmaps all virtual pages except last 1 GB
