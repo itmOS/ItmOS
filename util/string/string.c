@@ -15,3 +15,9 @@ void i_memset(void *ptr, int value, int num) {
     while (num--)
         *char_ptr++ = (unsigned char) value;
 }
+
+int i_memcmp(const char *fst, const char *snd, unsigned n) {
+    unsigned i;
+    for (i = 0; i < n && fst[i] == snd[i]; i++);
+    return i < n ? fst[i] - snd[i] : 0;
+}
