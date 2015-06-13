@@ -76,8 +76,24 @@ new_page_table:
 ;;; Duplicates page table(physical address): maps first 3GB to new pages and copies data; maps last 1 GB to same pages
 ;;; void* dup_page_table(void* table);
 dup_page_table:
-        ;; Get new page table(mapped to WINDOW)
-        call new_page_table
+        push ecx
+        NEW_CLEAN_PHYSPAGE
+        
+        push eax
+        mov dword ecx, 768
+.looploop:
+        cmp ecx, 1024
+        je .exitlooploop
+        ;; Get address of second level page table from kernels
+        mov dword eax, [page_directory + 4 * ecx]
+        mov dword [WINDOW + 4 * ecx], eax
+
+        inc ecx
+        jmp .looploop
+.exitlooploop:
+        pop eax
+        pop ecx
+        
         ;; xchg bx, bx
         ;; Map givent page table
         mov dword ecx, [esp + 4]
