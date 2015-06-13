@@ -105,8 +105,7 @@ fork:
     lea esi, [tss_table + eax]
     lea edi, [tss_table + ebx]
     rep movsd
-    mov eax, cr3
-    CCALL dup_page_table, eax
+    CCALL dup_page_table, cr3
     mov [tss_table + ebx + TSS.cr3], eax
     mov ecx, ebx
     sub ecx, [cur_process]
