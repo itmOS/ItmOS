@@ -1,4 +1,4 @@
-;;; Dummy, non-working implementation of the FAT16 FS without long names
+;;; Dummy, almost non-working implementation of FAT16 without long file names (LFN)
 
 %include "ata/ata.inc"
 %include "util/log/log.inc"
@@ -7,13 +7,19 @@ global get_bootrecord
 global fat_init
 global fat_read
 
+extern i_memcmp
+extern malloc
+
 %macro PRINT_NUM 1
+    push ecx
     push %1
     push format
     call tty_printf
     add esp, 4
     pop %1
+    pop ecx
 %endmacro
+
 struc boot_record
     .bootjmp:             resb 3
     .oem_name:            resb 8
@@ -56,20 +62,36 @@ struc file_entry
     .file_size:   resd 1
 endstruc
 
+
+struc fat_fdobject
+    .count:    resd 1 ; int count;
+    .read:     resd 1 ; int (*read)(fdobj* this, void* buf, int count);
+    .write:    resd 1 ; int (*write)(fdobj* this, void* buf, int count);
+    .close:    resd 1 ; void (*close)(fdobj* this);
+
+    .fid:      resd 1 ; fid is the number of the file entry in the directory table
+    .dirtable: resd 1 ; some int, giving the dirtable (not sure yet about its format). currently not used.
+    .offset:   resd 1 ; the offset used for read() and write()
+    .flags:    resd 1
+endstruc
+
 section .rodata
-    format: db "n: %d", 10, 0
+    format: db "n: %d", 10, 0 ; used for debug output
     endl: db 10, 0
     fat_identify_format: db "bytes per sector: %d", 10, "sectors per cluster: %d", 10, "sectors reserved: %d", 10, "root entries: %d", 10, "sectors total: %d", 10, "copies of FAT: %d", 10, "sectors per FAT: %d", 10, 0
 
-section .data
+section .bss
     my_cool_heap: resq 8192
-    fat: resq 400*512
+    fat: resb 400*512
     bootrecord: resb boot_record_size
-    dirtable: resq 32*512 ; hz if it’s enough
+    dirtable: resb file_entry_size*512 ; hz if it’s enough
     dirtable_offset: resq 1
+    fdobjects: resb 300*fat_fdobject_size
+    fdobj_count: resd 1
 
 
 section .text
+
 
 ;;; Just prints some information about the file system
 fat_identify:
@@ -144,12 +166,14 @@ fat_init:
     PRINT_NUM eax
 
 
-    push 1488
-    push 1488
-    push my_cool_heap
-    push dword 0
-    call fat_read
-    add esp, 16
+    call new_fat_fdobject
+    mov  [eax + fat_fdobject.fid], dword 1
+    ;xor  eax, eax
+    push 1488 ; count — ignored
+    push my_cool_heap ; dest
+    push eax
+    call [eax + fat_fdobject.read] ; virtual function — where is your C++ now?
+    add esp, 12
     TTY_PUTS my_cool_heap
 
     ret
@@ -160,10 +184,52 @@ get_bootrecord:
     mov eax, bootrecord
     ret
 
-;;; int fat_open_ro(char* path)
-;;; Gets the path of a file and returns a unique id to read it (or -1 if not found)
+;;; fat_fdobject* new_fat_fdobject();
+;;; for internal use only, just creates an fdobject with .count, .read, .write and .close set correctly
+new_fat_fdobject:
+    mov eax, [fdobj_count]
+    mov ecx, fat_fdobject_size
+    ;mul ecx
+    mov esi, ecx
+    call malloc
+    ;lea eax, [fdobjects + eax] ; FIXME: replace with malloc
+    mov [eax + fat_fdobject.count], dword 1
+    mov [eax + fat_fdobject.read], dword fat_read
+    mov [eax + fat_fdobject.write], dword fat_write
+    mov [eax + fat_fdobject.close], dword fat_close
+    inc dword [fdobj_count]
+    ret
+
+;;; fat_fdobj* fat_open(const char* path, int flags)
+;;; Gets the path of a file and returns an fdobj* referring to that file (NULL if not found)
 fat_open:
-    mov eax, -1
+    xor eax, eax
+    xor ecx, ecx
+    mov edx, dirtable
+    push dword 11        ;; third and second arguments for i_memcmp
+    lea  edx, [esp + 4]  ;; to call the function, I am only going to change the first one.
+    push edx
+    sub  esp, 4
+    jmp  .found
+    .loop
+        mov eax, ecx
+        ;cmp byte [dirtable + 32*eax + file_entry.name], 0
+        je   .return
+        lea  edx, [ecx + eax + file_entry.name]
+        push edx
+        call i_memcmp
+        add  esp, 4
+        inc  ecx ; ECX is the number of the file entry
+        jmp  .loop
+    .found
+    call new_fat_fdobject
+    test eax, eax
+    jz   .return
+    mov [eax + fat_fdobject.fid], ecx
+    .not_found
+        xor eax, eax
+    .return
+    add esp, 12
     ret
 
 ;;; size_t fat_file_size(int fid)
@@ -173,11 +239,11 @@ fat_file_size:
     mov eax, [edx + file_entry.file_size]
     ret
 
-;;; ssize_t fat_read(int fid, void* dest, int offset, int count)
-;;; Tries to read count bytes from the file with the given id at the given offset
+;;; ssize_t fat_read(fat_fdobject* fdobj, void* dest, int count)
+;;; Tries to read `fdobj->count` bytes from the file with the given fdobject at the right offset
 ;;; and returns the number of bytes read
 
-;;; ^ lie, pizdezh and provocation
+;;; ^ lie and provocation
 ;;; offset and count are currently ignored
 ;;; it reads the whole file into the buffer (and also some trailing bytes till the end of the cluster)
 ;;; also, it always returns zero
@@ -187,19 +253,26 @@ fat_read:
     push ebx
     push edi
     push esi
-    mov  ebx, 512
+    xor ebx, ebx
+    mov bx, [bootrecord + boot_record.bytes_per_sector]
     xor  ecx, ecx
     xor  edx, edx
     mov  edi, [ebp + 12]
     mov  ecx, [ebp + 8]
+    mov  ecx, [ecx + fat_fdobject.fid]
     xor  esi, esi
-    mov  si,  [dirtable + file_entry.start] ; the first cluster of the file
-    add  esi, ecx
+    shl  ecx, 5 ; 2**5 == 32 == file_entry.size
+    mov  si,  [dirtable + ecx + file_entry.start] ; the first cluster of the file
+    ;;add  esi, ecx  ; offset inside the dirtable
     xor  ecx, ecx
     mov  cl,  [bootrecord + boot_record.sectors_per_cluster]
     .loop
         cmp  esi, 0FFFFh
         je  .end
+
+        push ecx
+        PRINT_NUM esi
+        pop  ecx
 
         mov  eax, esi
         sub  eax, 2
@@ -220,7 +293,6 @@ fat_read:
         shl  edx, 1
         mov  si, [fat + edx]
         push ecx
-        PRINT_NUM esi
         pop  ecx
         jmp  .loop
     .end
@@ -236,4 +308,10 @@ fat_read:
 ;;; and returns the number of bytes written
 fat_write:
     xor eax, eax
+    ret
+
+fat_close:
+    mov eax, [esp + 4]
+    dec dword [eax + fat_fdobject.count]
+    ; FIXME add free
     ret
