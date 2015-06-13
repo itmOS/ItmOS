@@ -72,13 +72,6 @@ call tty_puts
 pop esi
 %endmacro
 
-%macro TTY_PUTS 1
-push esi
-mov esi, %1
-call tty_puts
-pop esi
-%endmacro
-
 %macro TTY_PUTC 1
 push eax
 mov al, %1
