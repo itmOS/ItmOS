@@ -21,6 +21,7 @@ new_page_table:
         push eax
         push edx
         push edi
+        push eax
         mov dword ecx, 768
 .loop:
         cmp ecx, 1024
@@ -32,18 +33,37 @@ new_page_table:
         inc ecx
         jmp .loop
 .exitloop:
+        ;; Get second level page table for 4 MB
+        NEW_CLEAN_PHYSPAGE
+        ;; Save its physical address
+        mov ecx, eax
+        ;; Get first level page table physical address
+        pop eax
+        ;; Map it to second window
+        SAFE_WINDOW2 eax
+        ;; Put second level page table for 4 MB in it
+        push ecx
+        ;; Flags
+        or dword ecx, DEFAULT_ACCESS_MODE
+        mov dword [WINDOW2], ecx
+        pop ecx
+        ;; Restore
+        mov eax, ecx
+
+        ;; Map second level page table except first 4 KB
+        SAFE_WINDOW2 eax
+        ;; Counter
         mov dword ecx, 1
 .loop2:
         cmp ecx, 1024
         je .exit
-
+        ;; Get page
         NEW_CLEAN_PHYSPAGE
-        mov edi, eax
+        ;; Add flags
+        or dword eax, DEFAULT_ACCESS_MODE
+        ;; And put it into second level table
+        mov dword [WINDOW2 + 4 * ecx], eax
 
-        mov edx, ecx
-        sal dword edx, 12
-
-        CCALL map_page, edx, edi, DEFAULT_ACCESS_MODE
         inc ecx
         jmp .loop2
 .exit:
