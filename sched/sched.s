@@ -49,10 +49,8 @@ sch_bootstrap:
 
     ADD_SYSTEM_FUNCTION 6, fork
     mov esp, [tss_table + TSS.esp]
-        xchg bx, bx
     IRQINITHANDLER context_switch, IRQ_BASE, 0x8E00
     loadUserspaceSel
-        xchg bx, bx
     retf ; Diving into our first user process!
 
 userspace:

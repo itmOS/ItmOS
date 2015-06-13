@@ -50,12 +50,14 @@ interrupt_manager:
         accessPrivilegedData
         mov dword ebx, [interrupt_handlers]
         mov dword eax, [ebx + eax * 4]
+        call eax
         restoreOrigDescriptors
         ret
 
 ;;; Handler for keyboard
 ;;; Todo SHIFT support
 keyboard_int:
+        xchg bx, bx
         xor eax, eax
         in al, 0x60
         push eax
@@ -109,7 +111,6 @@ system_interrupt:
 init_interrupts:
         push eax
         push edi
-	xchg bx, bx
         CCALL malloc, INTERRUPT_HANDLERS_SIZE
         mov dword [interrupt_handlers], eax 
 

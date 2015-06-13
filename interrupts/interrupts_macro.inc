@@ -36,6 +36,10 @@ PIC2_PORT2                      equ     0xA1
 %macro IRQINTHANDLER 1
         pusha
         mov eax, %1
+        cmp eax, 0x21
+        jne %%handle
+        xchg bx, bx
+%%handle:
         call interrupt_manager
         ;; Send EOI(end of interrupt) to PIC
         NOTIFYPIC

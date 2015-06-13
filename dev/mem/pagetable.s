@@ -37,7 +37,7 @@ new_page_table:
         cmp ecx, 1024
         je .exit
 
-        CCALL get_pages, dword 1
+        NEW_CLEAN_PHYSPAGE
         mov edi, eax
 
         mov edx, ecx
@@ -86,7 +86,7 @@ dup_page_table:
         jmp .loop
 .init:
         ;; If not present get page and init 
-        CCALL get_pages, dword 1
+        NEW_CLEAN_PHYSPAGE
         or eax, DEFAULT_ACCESS_MODE
         mov [WINDOW + 4 * ecx], eax
         ;; Than we need to remap second level pages in eax from ebx
@@ -110,7 +110,7 @@ dup_page_table:
         test ebx, ebx
         jz .finishloop2
         ;; If not get page for initialization
-        CCALL get_pages, dword 1
+        NEW_CLEAN_PHYSPAGE
         or eax, DEFAULT_ACCESS_MODE
         ;; Than need to memcpy content of source page to destination page
         mov dword [WINDOW + 4 * edx], eax
@@ -253,7 +253,7 @@ init_kernel_page_table:
 	jmp .loop
 .init:
         ;; If not present get page and init 
-        CCALL get_pages, dword 1
+        NEW_CLEAN_PHYSPAGE
         or eax, KERNEL_ACCESS_MODE
         mov [page_directory + 4 * ecx], eax
         jmp .loop
