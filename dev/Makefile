@@ -1,7 +1,7 @@
 MODULE_NAME = $(shell basename $(shell pwd))
 # Each of submodules Makefiles should provide default, "clean" and "list-objs" targets.
 # The "list-objs" target should just output all exported objects.
-SUBMODULES = kbd
+SUBMODULES = kbd mem
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(shell $(MAKE) --no-print-directory -C $(DIR) list-objs))
 OUTPUT = $(MODULE_NAME).a
