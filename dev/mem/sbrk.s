@@ -17,19 +17,16 @@ HEAP_BEGIN      equ     0xc0400000
 HEAP_END        equ     0xFFFFDFFF
 FLAG            equ     0x3
 
-;;; Increases program break(end of data segment) with incr bytes
-;;; int sbrk(int incr);
-sbrk:
-        mov eax, [esp + 4]
+%macro SBRK 4
         push edi
         push esi
         push ecx
         push edx
         push ebx
 
-        mov edi, eax
+        mov edi, %1
         ;; Check if first page of head is mapped
-        CCALL get_physaddr, dword HEAP_BEGIN
+        CCALL get_physaddr, dword %2
         test eax, eax
         jnz .nomapping
 
@@ -39,7 +36,7 @@ sbrk:
         jz .fail
 
         mov ecx, eax
-        CCALL map_page, dword HEAP_BEGIN, eax, dword FLAG
+        CCALL map_page, dword %2, eax, dword %4
         test eax, eax
         jz .setbegin
         ;; If fail release physical page
@@ -47,20 +44,20 @@ sbrk:
         jmp .fail
 .setbegin:
         ;; Set brk structure, containing current length of not allocates memory
-        mov dword [HEAP_BEGIN], 4
+        mov dword [%2], 4
 .nomapping:
         ;; Let edx be index of last mapped page
-        mov dword edx, [HEAP_BEGIN]
+        mov dword edx, [%2]
         dec edx
-        add edx, HEAP_BEGIN
+        add dword edx, %2
         shr edx, 12
         ;; And ebx index last page that must be mapped
         mov dword ebx, edi
         dec ebx
-	add dword ebx, [HEAP_BEGIN]
-        add ebx, HEAP_BEGIN
+	add dword ebx, [%2]
+        add dword ebx, %2
         ;; Check if allocation is possible
-        cmp ebx, HEAP_END
+        cmp dword ebx, %3
         jnl .fail
 
         shr ebx, 12
@@ -87,7 +84,7 @@ sbrk:
         ;; Map to edx index page physical address we got
         push edx
         sal dword edx, 12
-        CCALL map_page, edx, eax, dword FLAG
+        CCALL map_page, edx, eax, dword %4
         pop edx
         ;; If fail we need to free already mapped pages and free current physical page
         test eax, eax
@@ -105,11 +102,11 @@ sbrk:
         dec edx
         jmp .free
 .setexit:
-        mov dword eax, [HEAP_BEGIN]
+        mov dword eax, [%2]
 	add edi, eax
-        add dword eax, HEAP_BEGIN
+        add dword eax, %2
         ;; Set given address as current program break
-        mov dword [HEAP_BEGIN], edi
+        mov dword [%2], edi
 .exit:
         pop ebx
         pop edx
@@ -126,3 +123,12 @@ sbrk:
         CCALL unmap_page, esi
         inc esi
         jmp .failfree
+%endmacro
+
+
+
+;;; Increases program break(end of data segment) with incr bytes
+;;; int sbrk(int incr);
+sbrk:
+        mov eax, [esp + 4]
+        SBRK eax, HEAP_BEGIN, HEAP_END, FLAG
