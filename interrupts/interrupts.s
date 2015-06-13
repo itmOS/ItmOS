@@ -6,6 +6,7 @@ section .text
 %include "interrupts_macro.inc"
 %include "boot/boot.inc"
 %include "util/macro.inc"
+%include "dev/mem/sbrk.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -107,6 +108,13 @@ system_interrupt:
     mov eax, -1
     iret
 
+HEAP_BEGIN      equ 0x400000
+HEAP_END        equ 0xbffff000
+FLAG            equ 0x7
+
+user_sbrk:
+        SBRK edi, HEAP_BEGIN, HEAP_END, FLAG
+
 init_interrupts:
         push eax
         push edi
@@ -158,6 +166,7 @@ init_interrupts:
         out PIC2_PORT2, al
 
         ADD_HANDLER system_interrupt, 0x80, 0xEE00
+        ADD_SYSTEM_FUNCTION 12, user_sbrk
 
         ;; Set handler for timer interrupts and enable them
         ENABLE_MASTER_BIT 0x01
