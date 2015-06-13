@@ -97,6 +97,10 @@ writeScreen:
     ret
 
 fork:
+    CCALL dup_page_table, cr3
+    test eax, eax
+    jz .failure
+    mov edx, eax
     mov ebx, TSS_size
     lock xadd [proc_count], ebx
     mov eax, [cur_process]
@@ -104,8 +108,7 @@ fork:
     lea esi, [tss_table + eax]
     lea edi, [tss_table + ebx]
     rep movsd
-    CCALL dup_page_table, cr3
-    mov [tss_table + ebx + TSS.cr3], eax
+    mov [tss_table + ebx + TSS.cr3], edx
     mov ecx, ebx
     sub ecx, [cur_process]
     add [tss_table + ebx + TSS.esp0], ecx
@@ -118,6 +121,9 @@ fork:
     ret
 .childProcess:
     xor eax, eax
+    ret
+.failure:
+    mov eax, -1
     ret
 
 global current_pid
