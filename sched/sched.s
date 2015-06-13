@@ -1,8 +1,10 @@
-;%include "util/mem/mem.inc"
 %include "interrupts/interrupts.inc"
 %include "boot/boot.inc"
+%include "util/macro.inc"
+%include "tty/tty.inc"
 
 extern new_page_table
+extern dup_page_table
 
 section .text
 
@@ -39,14 +41,21 @@ sch_bootstrap:
     add dword [proc_count], TSS_size
     mov dword [tss_table + TSS.esp0], tss_table + TSS.stackTop - 4
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
-    mov eax, cr3
+    call new_page_table
     mov [tss_table + TSS.cr3], eax
     mov dword [tss_table + TSS.stackTop - 4], USERSPACE_DATA
     mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
-    mov dword [tss_table + TSS.stackTop - 16], userspace - KERNEL_VMA
+    mov dword [tss_table + TSS.stackTop - 16], 4 * 1024
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
     mov byte [process_ready], 2
 
+    mov cr3, eax
+    cld
+    mov esi, userspace
+    mov edi, 4 * 1024
+    mov ecx, userspace_end - userspace
+    rep movsb
+    ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
     mov esp, [tss_table + TSS.esp]
     IRQINITHANDLER context_switch, IRQ_BASE, 0x8E00
@@ -54,21 +63,41 @@ sch_bootstrap:
     retf ; Diving into our first user process!
 
 userspace:
+    mov dword [5 * 1024], 0
+    mov byte [5 * 1024], 'P'
+    mov byte [5 * 1024 + 2], 'C'
     mov eax, 6
     int 0x80
     test eax, eax
     jz .child
-.parent
-    mov byte [0xB8001], 'p'
-    inc byte [0xB8000]
+.parent:
+    mov eax, 2
+    mov ebx, 2
+    mov edx, 5 * 1024
+    int 0x80
     jmp .parent
 .child:
-    mov byte [0xB8001], 'c'
-    inc byte [0xB8000]
+    mov eax, 2
+    mov ebx, 2
+    mov edx, 5 * 1024 + 2
+    int 0x80
     jmp .child
+userspace_end
 
-global fork
+writeScreen:
+    cmp ebx, 2
+    jne .failure
+    cmp edx, KERNEL_VMA
+    jle .failure
+    TTY_PUTS edx
+    xor eax, eax
+    ret
+.failure:
+    mov eax, -1
+    ret
+
 fork:
+    xchg bx, bx
     mov ebx, TSS_size
     lock xadd [proc_count], ebx
     mov eax, [cur_process]
@@ -76,8 +105,9 @@ fork:
     lea esi, [tss_table + eax]
     lea edi, [tss_table + ebx]
     rep movsd
-    ;DUP_PAGE_TABLE
-    ;mov [tss_table + ebx + TSS.cr3], eax
+    mov eax, cr3
+    CCALL dup_page_table, eax
+    mov [tss_table + ebx + TSS.cr3], eax
     mov ecx, ebx
     sub ecx, [cur_process]
     add [tss_table + ebx + TSS.esp0], ecx
@@ -99,6 +129,7 @@ current_pid:
     ret
 
 context_switch:
+    xchg bx, bx
     mov eax, [cur_process]
     mov [tss_table + eax + TSS.esp], esp
     shr eax, TSS_POWER

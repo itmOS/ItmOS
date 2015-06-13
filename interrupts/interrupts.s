@@ -57,7 +57,6 @@ interrupt_manager:
 ;;; Handler for keyboard
 ;;; Todo SHIFT support
 keyboard_int:
-        xchg bx, bx
         xor eax, eax
         in al, 0x60
         push eax

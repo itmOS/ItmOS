@@ -200,7 +200,7 @@ tty_endl:
 	ret
 
 ;;; Address of the start of the video memory
-video_start: equ 0xB8000 ;; (KERNEL_VMA + 0xB8000)
+video_start: equ (KERNEL_VMA + 0xB8000) ;; 0xB8000
 screen_width: equ 80
 screen_height: equ 25
 screen_size: equ screen_width * screen_height
