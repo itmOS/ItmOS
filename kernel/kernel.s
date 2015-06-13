@@ -60,9 +60,10 @@ kernel_main:
 	push dword 70
 	push sprintf_test
 	CCALL tty_printf, sprintf_test, dword 70, dword -80
-        add eax, 12
-        extern sch_bootstrap
-        jmp sch_bootstrap
+    add eax, 12
+    TTY_PUTS processes
+    extern sch_bootstrap
+    jmp sch_bootstrap
 
 logging_prelude:
 	LOG_SIMPLE prelude
@@ -72,6 +73,8 @@ section .data
 prelude:	db '===== Booting ItmOS, be careful =====', 0
 
 testing:	db 'KERNEL: Simple test',0
+
+processes: db 'Running two processes printing letters:', 10, 0
 
 memory_test:    db "%u", 10, 0
 

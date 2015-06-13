@@ -44,8 +44,10 @@ sch_bootstrap:
     call new_page_table
     mov [tss_table + TSS.cr3], eax
     mov dword [tss_table + TSS.stackTop - 4], USERSPACE_DATA
+    mov dword [tss_table + TSS.stackTop - 8], 5 * 1024 - 1
     mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
     mov dword [tss_table + TSS.stackTop - 16], 4 * 1024
+    mov dword [tss_table + TSS.status], -1
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
     mov byte [process_ready], 2
 
@@ -55,6 +57,7 @@ sch_bootstrap:
     mov edi, 4 * 1024
     mov ecx, userspace_end - userspace
     rep movsb
+    ADD_SYSTEM_FUNCTION 0, exit
     ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
     mov esp, [tss_table + TSS.esp]
@@ -68,28 +71,49 @@ userspace:
     mov byte [5 * 1024 + 2], 'C'
     mov eax, 6
     int 0x80
+    mov ecx, 80 * 12 - 1
     test eax, eax
     jz .child
 .parent:
+    test ecx, ecx
+    jz .exit
     mov eax, 2
-    mov ebx, 2
-    mov edx, 5 * 1024
+    mov edi, 2
+    mov esi, 5 * 1024
+    push ecx
     int 0x80
+    pop ecx
+    dec ecx
     jmp .parent
 .child:
+    test ecx, ecx
+    jz .exit
     mov eax, 2
-    mov ebx, 2
-    mov edx, 5 * 1024 + 2
+    mov edi, 2
+    mov esi, 5 * 1024 + 2
+    push ecx
     int 0x80
+    pop ecx
+    dec ecx
     jmp .child
+.exit:
+    xor eax, eax
+    xor edi, edi
+    int 0x80
 userspace_end
 
+exit:
+    mov eax, [cur_process]
+    mov dword [tss_table + TSS.status + eax], edi
+    sti
+    hlt
+
 writeScreen:
-    cmp ebx, 2
+    cmp edi, 2
     jne .failure
-    cmp edx, KERNEL_VMA
+    cmp esi, KERNEL_VMA
     jle .failure
-    TTY_PUTS edx
+    TTY_PUTS esi
     xor eax, eax
     ret
 .failure:
@@ -114,6 +138,7 @@ fork:
     add [tss_table + ebx + TSS.esp0], ecx
     lea ecx, [ecx + esp - 4]
     mov [tss_table + ebx + TSS.esp], ecx
+    mov dword [tss_table + ebx + TSS.status], -1
     mov dword [ecx], .childProcess
     shr ebx, TSS_POWER
     mov byte [process_ready + ebx], 1
@@ -139,16 +164,23 @@ context_switch:
     mov byte [process_ready + eax], 2
     mov edx, [proc_count]
     shr edx, TSS_POWER
+    mov ecx, eax
 .loop:
     inc eax
     cmp eax, edx
     jl .check
     xor eax, eax
+    cmp eax, ecx
+    je .shutdown
 .check:
     mov bl, [process_ready + eax]
     test bl, bl
     je .loop
-    shl eax, TSS_POWER
+    mov esi, eax
+    shl esi, TSS_POWER
+    cmp dword [tss_table + esi + TSS.status], -1
+    jne .loop
+    mov eax, esi
     mov [cur_process], eax
     add eax, tss_table
     switchTss
@@ -160,6 +192,8 @@ context_switch:
     NOTIFYPIC
 .return:
     ret
+.shutdown:
+    hlt
 
 global waitpid
 waitpid:
