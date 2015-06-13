@@ -158,6 +158,8 @@ current_pid:
     ret
 
 context_switch:
+    cmp dword [shutdown], 0
+    jne .return
     mov eax, [cur_process]
     mov [tss_table + eax + TSS.esp], esp
     shr eax, TSS_POWER
@@ -193,7 +195,13 @@ context_switch:
 .return:
     ret
 .shutdown:
+    xchg bx, bx
+    mov dword [shutdown], 1
+    NOTIFYPIC
+    sti
+.haltLoop
     hlt
+    jmp .haltLoop
 
 global waitpid
 waitpid:
@@ -238,6 +246,7 @@ section .data
 proc_count   dd 0
 cur_process  dd 0
 tss_descr    dd 0
+shutdown     dd 0
 
 process_ready: times PROCESS_LIMIT db 0
 
