@@ -1,6 +1,8 @@
 section .text
 
 %include "util/macro.inc"
+%include "dev/mem/mem_macro.inc"
+%include "dev/mem/virtmem.inc"
 
 extern get_physaddr
 extern get_pages
@@ -32,14 +34,14 @@ sbrk:
         jnz .nomapping
 
         ;; Get physical page and map to it
-        CCALL get_pages, dword 1
+	NEW_CLEAN_PHYSPAGE
         test eax, eax
         jz .fail
 
         mov ecx, eax
         CCALL map_page, dword HEAP_BEGIN, eax, dword FLAG
         test eax, eax
-        jnz .setbegin
+        jz .setbegin
         ;; If fail release physical page
         CCALL put_pages, ecx, dword 1
         jmp .fail
@@ -51,16 +53,17 @@ sbrk:
         mov dword edx, [HEAP_BEGIN]
         dec edx
         add edx, HEAP_BEGIN
-        shl edx, 12
+        shr edx, 12
         ;; And ebx index last page that must be mapped
         mov dword ebx, edi
         dec ebx
+	add dword ebx, [HEAP_BEGIN]
         add ebx, HEAP_BEGIN
         ;; Check if allocation is possible
         cmp ebx, HEAP_END
         jnl .fail
 
-        shl ebx, 12
+        shr ebx, 12
         
         ;; If page containing address to shift break to equal to last mapped update the break info
         cmp edx, ebx
@@ -76,7 +79,7 @@ sbrk:
         jg .setexit
 
         ;; Get physical page to map
-        CCALL get_pages, dword 1
+	NEW_CLEAN_PHYSPAGE
         ;; If fail we need to free already mapped pages
         test eax, eax
         jz .failfree
@@ -103,6 +106,7 @@ sbrk:
         jmp .free
 .setexit:
         mov dword eax, [HEAP_BEGIN]
+	add edi, eax
         add dword eax, HEAP_BEGIN
         ;; Set given address as current program break
         mov dword [HEAP_BEGIN], edi

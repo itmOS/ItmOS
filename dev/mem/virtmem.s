@@ -219,6 +219,12 @@ get_physaddr:
         add dword eax, WINDOW
 
         mov dword eax, [eax]
+	mov ecx, eax
+	and dword ecx, 1
+	test ecx, ecx
+	jnz .exit
+	xor eax, eax
+.exit:
         and dword eax, ~0xFFF
 
         pop ecx
