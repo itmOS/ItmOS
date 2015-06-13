@@ -48,7 +48,7 @@ test_run_all:
 	.loop:
 	mov edi, [single_tests + ecx * test_t.sizeof + test_t.name]
 	push ecx
-	LOG_SIMPLE edi
+	;;LOG_SIMPLE edi
 	pop ecx
 
 	mov esi, [single_tests + ecx * test_t.sizeof + test_t.ptr]
@@ -59,14 +59,28 @@ test_run_all:
 	jz .test_passed
 	;; Test failed
 	push ecx
-	LOG_ERR edi
+	push edi
+	push test_failed
+	TTY_SAVE_STYLE
+	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_RED)
+	call tty_printf
+	TTY_RESTORE_STYLE
+	add esp, 4
+	pop edi
 	pop ecx
 	inc edx
 	jmp .continue
 
 	.test_passed
 	push ecx
-	LOG_OK edi
+	push edi
+	push test_passed
+	TTY_SAVE_STYLE
+	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_GREEN)
+	call tty_printf
+	TTY_RESTORE_STYLE
+	add esp, 4
+	pop edi
 	pop ecx
 
 	.continue
@@ -83,12 +97,14 @@ test_run_all:
 	pop esi
 	pop ecx
 	ret
-	
+
 section .data
-single_tests_count:	dd 0
-starting_tests:	db '===== Running tests =====', 0
-tests_finished:	db '===== Tests finished =====', 0
+single_tests_count: dd 0
+starting_tests: db '===== Running tests =====', 0
+tests_finished: db '===== Tests finished =====', 0
+test_passed: db '[PASSED] %s', 10, 0
+test_failed: db '[FAILED] %s', 10, 0
 
 section .bss
 ;;; FIXME: Make the size infinite when adding dynamic memory
-single_tests:	resb 1024 * test_t.sizeof
+single_tests: resb 1024 * test_t.sizeof

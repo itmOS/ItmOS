@@ -7,12 +7,15 @@ global log_ok
 global log_err
 global log_warn
 global log_bochs_console
+global log_errf
+global log_warnf
+global log_okf
 
 section .text
 
 ;;; void log_ok(char* message)
 ;;; Log the normal info message.
-log_ok:	
+log_ok:
 	push esi
 
 	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_GREEN), ok_message
@@ -29,7 +32,7 @@ log_ok:
 
 ;;; void log_err(char* message)
 ;;; Log the error message.
-log_err:	
+log_err:
 	push esi
 
 	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_RED), err_message
@@ -47,7 +50,7 @@ log_err:
 
 ;;; void log_warn(char* message)
 ;;; Log the warning message.
-log_warn:	
+log_warn:
 	push esi
 
 	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_YELLOW), warn_message
@@ -62,6 +65,26 @@ log_warn:
 
 	pop esi
 	ret
+
+;; FIXME: There is no simple way to correctly restore
+;; style after vararg calls?
+;;; void log_errf(char* fmt, ...)
+log_errf:
+	TTY_SAVE_STYLE
+	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_RED), err_message
+	jmp tty_printf
+
+;;; void log_warnf(char* fmt, ...)
+log_warnf:
+	TTY_SAVE_STYLE
+	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_YELLOW), warn_message
+	jmp tty_printf
+
+;;; void log_okf(char* fmt, ...)
+log_okf:
+	TTY_SAVE_STYLE
+	TTY_PUTS_STYLED TTY_STYLE(TTY_BLACK, TTY_GREEN), ok_message
+	jmp tty_printf
 
 ;;; void log_bochs_console(char* message)
 ;;; Log to the bochs console

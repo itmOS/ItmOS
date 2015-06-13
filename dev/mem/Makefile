@@ -1,4 +1,4 @@
-OBJ = kbd.o kbd_buf_test.o
+OBJ = phymem.o virtmem.o mem_test.o pagetable.o sbrk.o allocation.o
 
 all: $(OBJ)
 

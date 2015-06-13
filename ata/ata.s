@@ -191,6 +191,15 @@ ata_rd_segs:
 	mov ebp, esp
 	push ebx
 	push edi
+
+	mov eax, [ebp + 8]
+	add eax, [ebp + 12]
+	dec eax
+	cmp eax, dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS]     ; check if we are going to read valid sector
+	jge .invalid_sector
+	cmp eax, 0
+	jl .invalid_sector
+
 	test word [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SUPPORTED], 0x400 ; see ata_identify for more information
 	jnz .lba48_support														
 	
@@ -205,6 +214,8 @@ ata_rd_segs:
 	mov ebp, [ebp + 8]
 	call ata_pio_lba28_rd_segs
 	jmp .return
+.invalid_sector
+	LOG_ERR ata_invalid_sector
 .fail
 	LOG_ERR ata_pio_read_error
 .return
@@ -220,6 +231,15 @@ ata_wr_segs:
 	mov ebp, esp
 	push ebx
 	push esi
+
+	mov eax, [ebp + 8]
+	add eax, [ebp + 12]
+	dec eax
+	cmp eax, dword [ata_identify_data + 2 * ATA_IDENTIFY_LBA28_SECTORS]     ; check if we are going to read valid sector
+	jge .invalid_sector
+	cmp eax, 0
+	jl .invalid_sector
+	
 	test word [ata_identify_data + 2 * ATA_IDENTIFY_LBA48_SUPPORTED], 0x400 ; see ata_identify for more information 
 	jnz .lba48_support							 
 
@@ -234,6 +254,8 @@ ata_wr_segs:
 	mov ebp, [ebp + 8]
 	call ata_pio_lba28_wr_segs
 	jmp .return
+.invalid_sector
+	LOG_ERR ata_invalid_sector
 .fail
 	LOG_ERR ata_pio_write_error
 .return
@@ -458,6 +480,8 @@ ata_pio_lba28_not_supported:  db 'ATA_PIO: LBA28 is not supported', 0
 
 ata_pio_read_error:           db 'ATA_PIO: Read error', 0
 ata_pio_write_error:          db 'ATA_PIO: Write error', 0
+
+ata_invalid_sector:           db 'ATA_PIO: Invalid sector number was specified', 0
 
 ata_pio_status:               db 'ATA_PIO: Status code %u', 10, 0
 

@@ -5,6 +5,7 @@ section .text
 global tty_clear
 global tty_puts
 global tty_putc
+global tty_delc
 global tty_endl
 global tty_set_style
 global tty_save_style
@@ -133,7 +134,7 @@ tty_putc:
 	jne .put_char
 	call tty_endl
 	ret
-	.put_char:
+.put_char:
 	push ecx
 	push ebx
 	push eax
@@ -144,11 +145,39 @@ tty_putc:
 	mov [ebx + ebx + video_start], ax
 	inc word [cursor_pos]
 	call check_for_overflow
+	inc dword [from_endl]
 
 	pop eax
 	pop ebx
 	pop ecx
 	ret
+
+;;; Remove last character if it exists and is not endl
+tty_delc:
+        push eax
+        push ebx
+        push ecx
+        ;; Check if not the beginning
+        xor ebx, ebx
+        mov ebx, [cursor_pos]
+        test ebx, ebx
+        jz .exit
+
+        mov eax, [from_endl]
+        test eax, eax
+        jz .exit
+
+        ;; Set previous symbol to '\0'
+        dec ebx
+        xor eax, eax
+        mov [ebx + ebx + video_start], ax
+        dec word [cursor_pos]
+        dec dword [from_endl]
+.exit:
+        pop ecx
+        pop ebx
+        pop eax
+        ret
 
 ;;; Change cursor position to the start of the next line.
 tty_endl:
@@ -163,6 +192,7 @@ tty_endl:
 	sub [cursor_pos], dx
 	add word [cursor_pos], screen_width
 	call check_for_overflow
+	mov dword [from_endl], 0
 
 	pop ecx
 	pop edx
@@ -170,7 +200,7 @@ tty_endl:
 	ret
 
 ;;; Address of the start of the video memory
-video_start: equ 0xB8000 ;; (KERNEL_VMA + 0xB8000)
+video_start: equ (KERNEL_VMA + 0xB8000) ;; 0xB8000
 screen_width: equ 80
 screen_height: equ 25
 screen_size: equ screen_width * screen_height
@@ -186,3 +216,4 @@ cur_text_style: db 0
 
 align 4
 cursor_pos: dd 0
+from_endl:   dd 0
