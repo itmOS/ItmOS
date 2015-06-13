@@ -123,6 +123,7 @@ dup_page_table:
 .init:
         ;; If not present get page and init 
         NEW_CLEAN_PHYSPAGE
+        SAFE_WINDOW eax
         or eax, DEFAULT_ACCESS_MODE
         mov [WINDOW + 4 * ecx], eax
         ;; Than we need to remap second level pages in eax from ebx
@@ -147,6 +148,7 @@ dup_page_table:
         jz .finishloop2
         ;; If not get page for initialization
         NEW_CLEAN_PHYSPAGE
+        SAFE_WINDOW eax
         or eax, DEFAULT_ACCESS_MODE
         ;; Than need to memcpy content of source page to destination page
         mov dword [WINDOW + 4 * edx], eax
