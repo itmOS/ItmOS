@@ -54,8 +54,6 @@ static int list_test_hard(void)
   return 0;
 }
 
-void test_register_single(char*, int(*foo)(void));
-
 void list_register_tests(void)
 {
   test_register_single("UTIL/LIST: simple", &list_test);

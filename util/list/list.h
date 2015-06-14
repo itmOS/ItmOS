@@ -1,11 +1,7 @@
 #ifndef UTIL_LIST_H
 #define UTIL_LIST_H
 
-typedef struct
-{
-  struct list* next;
-  void* data;
-} list;
+typedef void* list;
 
 list* list_single(void*);
 void* list_head(list*);

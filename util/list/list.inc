@@ -1,8 +1,6 @@
 %ifndef UTIL_LIST_INC
 %define UTIL_LIST_INC
 
-%include "util/list/struct.inc"
-
 ;; list* list_single(void* e)
 ;; create the list with the signle element
 extern list_single
