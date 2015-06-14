@@ -6,6 +6,7 @@ section .text
 %include "interrupts_macro.inc"
 %include "boot/boot.inc"
 %include "util/macro.inc"
+%include "dev/mem/sbrk.inc"
 
 global init_interrupts
 global interrupt_manager
@@ -64,7 +65,7 @@ keyboard_int:
         add esp, 4
         test al, al
         jz .exit
-        
+
         mov dword ecx, 8
         cmp al, cl
         je .backspace
@@ -96,16 +97,36 @@ timer_int:
 
 system_interrupt:
     accessPrivilegedData
+    ;; Suspend the function call till we reach the pid 0
+    extern suspend_syscall
+    call suspend_syscall
+
+    ;; We've got back. Current pid is 0.
+    ;; Now let's retrieve our function and try to call it.
     mov eax, [system_functions + 4 * eax]
     test eax, eax
     jz .failure
     call eax
-    restoreOrigDescriptors
-    iret
+    jmp .finished
 .failure:
-    restoreOrigDescriptors
     mov eax, -1
+.finished:
+    ;; The function has returned something.
+    ;; Suspending till we get to our process.
+    extern syscall_finished
+    call syscall_finished
+
+    ;; Now we are in our caller process.
+    ;; eax has been popped already.
+    restoreOrigDescriptors
     iret
+
+HEAP_BEGIN      equ 0x400000
+HEAP_END        equ 0xbffff000
+FLAG            equ 0x7
+
+user_sbrk:
+        SBRK edi, HEAP_BEGIN, HEAP_END, FLAG
 
 init_interrupts:
         push eax
@@ -158,6 +179,7 @@ init_interrupts:
         out PIC2_PORT2, al
 
         ADD_HANDLER system_interrupt, 0x80, 0xEE00
+        ADD_SYSTEM_FUNCTION 12, user_sbrk
 
         ;; Set handler for timer interrupts and enable them
         ENABLE_MASTER_BIT 0x01

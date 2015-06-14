@@ -20,7 +20,7 @@ BOCHS ?= bochs
 BOCHSFLAGS ?= -f res/bochsrc -q
 
 QEMU ?= qemu-system-x86_64
-QEMUFLAGS ?= -m 4096 -boot d
+QEMUFLAGS ?= -m 2048 -boot d
 
 PARTED ?= parted
 PARTEDFLAGS ?= mklabel msdos mkpart primary fat16 2048s 100%
@@ -31,7 +31,7 @@ ISO_ROOT ?= isoroot
 ISO ?= kernel.iso
 OUTPUT_DIR ?= $(ISO_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
-SUBMODULES ?= boot kernel tty ata interrupts util dev sched fs multiboot
+SUBMODULES ?= boot kernel tty ata interrupts util dev sched multiboot
 GRUB_CONF ?= res/grub.cfg
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)

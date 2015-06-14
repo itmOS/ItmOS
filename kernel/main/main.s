@@ -13,7 +13,6 @@ extern ata_register_tests
 extern string_register_tests
 extern list_register_tests
 extern kbd_register_tests
-extern fs_register_tests
 
 extern mem_register_tests
 extern init_mem_manager
@@ -42,8 +41,7 @@ kernel_main:
 	call list_register_tests
     call mem_register_tests
 	call kbd_register_tests
-	call fs_register_tests
-
+	
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL
@@ -57,13 +55,13 @@ kernel_main:
     jmp sch_bootstrap
 
 logging_prelude:
-    LOG_SIMPLE prelude
-    ret
+	LOG_SIMPLE prelude
+	ret
 
 section .data
-prelude:    db '===== Booting ItmOS, be careful =====', 0
+prelude:	db '===== Booting ItmOS, be careful =====', 0
 
-testing:    db 'KERNEL: Simple test',0
+testing:	db 'KERNEL: Simple test',0
 
 processes: db 'Running two processes printing letters:', 10, 0
 
@@ -77,5 +75,5 @@ lba: dd 200
 
 section .bss
 stack:
-        resd 0x1000
+		resd 0x1000
 stack_top:
