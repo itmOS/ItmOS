@@ -36,20 +36,26 @@ init_tss:
 
 global sch_bootstrap
 sch_bootstrap:
-    mov eax, tss_table
-    switchTss
-    add dword [proc_count], TSS_size
     mov dword [tss_table + TSS.esp0], tss_table + TSS.stackTop - 4
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
-    call new_page_table
+    mov eax, cr3
     mov [tss_table + TSS.cr3], eax
-    mov dword [tss_table + TSS.stackTop - 4], USERSPACE_DATA
-    mov dword [tss_table + TSS.stackTop - 8], 5 * 1024 - 1
-    mov dword [tss_table + TSS.stackTop - 12], USERSPACE_CODE
-    mov dword [tss_table + TSS.stackTop - 16], 4 * 1024
+    mov dword [tss_table + TSS.stackTop - 4], kernel_routine
     mov dword [tss_table + TSS.status], -1
-    mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 16
-    mov byte [process_ready], 2
+    mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 4
+
+    mov eax, tss_table + TSS_size
+    switchTss
+    mov dword [tss_table + TSS_size + TSS.esp0], tss_table + TSS_size + TSS.stackTop - 4
+    mov word [tss_table + TSS_size + TSS.ss0], PRIVILEGED_DATA
+    call new_page_table
+    mov [tss_table + TSS_size + TSS.cr3], eax
+    mov dword [tss_table + TSS_size + TSS.stackTop - 4], USERSPACE_DATA
+    mov dword [tss_table + TSS_size + TSS.stackTop - 8], 5 * 1024 - 1
+    mov dword [tss_table + TSS_size + TSS.stackTop - 12], USERSPACE_CODE
+    mov dword [tss_table + TSS_size + TSS.stackTop - 16], 4 * 1024
+    mov dword [tss_table + TSS_size + TSS.status], -1
+    mov dword [tss_table + TSS_size + TSS.esp], tss_table + TSS_size + TSS.stackTop - 16
 
     mov cr3, eax
     cld
@@ -60,8 +66,8 @@ sch_bootstrap:
     ADD_SYSTEM_FUNCTION 0, exit
     ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
-    mov esp, [tss_table + TSS.esp]
-    IRQINITHANDLER context_switch, IRQ_BASE, 0x8E00
+    mov esp, [tss_table + TSS_size + TSS.esp]
+    INITHANDLER context_switch, IRQ_BASE, 0x8E00
     loadUserspaceSel
     retf ; Diving into our first user process!
 
@@ -103,15 +109,13 @@ userspace:
 userspace_end
 
 exit:
+    xchg bx, bx
     mov eax, [cur_process]
     mov dword [tss_table + TSS.status + eax], edi
-.waitHere:
-    sti
-    hlt
-    NOTIFYPIC
-    jmp .waitHere
+    jmp context_switch
 
 writeScreen:
+    xchg bx, bx
     cmp edi, 2
     jne .failure
     cmp esi, KERNEL_VMA
@@ -128,26 +132,25 @@ fork:
     test eax, eax
     jz .failure
     mov edx, eax
-    mov ebx, TSS_size
-    lock xadd [proc_count], ebx
-    mov eax, [cur_process]
+    mov ebx, [proc_count]
+    mov eax, [kernel_loop]
     mov ecx, TSS_size / 4
     lea esi, [tss_table + eax]
     lea edi, [tss_table + ebx]
     rep movsd
     mov [tss_table + ebx + TSS.cr3], edx
     mov ecx, ebx
-    sub ecx, [cur_process]
+    sub ecx, [kernel_loop]
     add [tss_table + ebx + TSS.esp0], ecx
     lea ecx, [ecx + esp - 4]
     mov [tss_table + ebx + TSS.esp], ecx
+    mov dword [tss_table + ebx + TSS.status], -1
     mov dword [ecx], .childProcess
     shr ebx, TSS_POWER
-    mov byte [process_ready + ebx], 2
+    lock add dword [proc_count], TSS_size
     mov eax, ebx
     ret
 .childProcess:
-    NOTIFYPIC
     xor eax, eax
     ret
 .failure:
@@ -156,51 +159,93 @@ fork:
 
 global current_pid
 current_pid:
-    mov eax, [cur_process]
+    mov eax, [kernel_loop]
     shr eax, TSS_POWER
     ret
 
-context_switch:
-    cmp dword [shutdown], 0
+global suspend_syscall
+suspend_syscall:
+    pusha
+    mov eax, [cur_process]
+    test eax, eax
+    jz .kernel
+    xchg bx, bx
+    mov dword [tss_table + eax + TSS.status], -2
+    xor esi, esi
+    call context_switch.systemFunction
+    jmp .return
+.kernel:
+    mov eax, [kernel_loop]
+    lea ecx, [esp - 4]
+    mov [tss_table + eax + TSS.esp], ecx
+    call kernel_routine
+.return:
+    popa
+    ret
+
+kernel_routine:
+    sti
+    mov eax, [kernel_loop]
+.loopThrough:
+    add eax, TSS_size
+    cmp eax, [proc_count]
+    jl .consider
+    mov eax, TSS_size
+.consider:
+    cmp dword [tss_table + eax + TSS.status], -2
+    jne .loopThrough
+    mov [kernel_loop], eax
+    mov ecx, [tss_table + eax + TSS.cr3]
+    mov [tss_table + TSS.cr3], ecx
+    mov cr3, ecx
+    mov esp, [tss_table + eax + TSS.esp]
+    ret
+
+global syscall_finished
+syscall_finished:
+    cmp dword [cur_process], 0
     jne .return
+    push eax
+    mov eax, [kernel_loop]
+    cli
+    lea ecx, [esp - 4]
+    mov [tss_table + eax + TSS.esp], ecx
+    mov dword [tss_table + eax + TSS.status], -1
+    call kernel_routine
+    pop eax
+.return
+    ret
+
+context_switch:
+    mov esi, 1
+.systemFunction:
     mov eax, [cur_process]
     mov [tss_table + eax + TSS.esp], esp
     shr eax, TSS_POWER
-    mov byte [process_ready + eax], 2
     mov edx, [proc_count]
     shr edx, TSS_POWER
-    mov ecx, eax
 .loop:
     inc eax
     cmp eax, edx
     jl .check
     xor eax, eax
 .check:
-    cmp eax, ecx
-    je .shutdown
-    mov bl, [process_ready + eax]
-    test bl, bl
-    je .loop
-    mov esi, eax
-    shl esi, TSS_POWER
-    cmp dword [tss_table + esi + TSS.status], -1
+    mov ecx, eax
+    shl ecx, TSS_POWER
+    cmp dword [tss_table + ecx + TSS.status], -1
     jne .loop
-    mov eax, esi
+    mov eax, ecx
     mov [cur_process], eax
     add eax, tss_table
     switchTss
     mov ecx, [eax + TSS.cr3]
     mov cr3, ecx
     mov esp, [eax + TSS.esp]
+    test esi, esi
+    jz .return
+    NOTIFYPIC
 .return:
     ret
-.shutdown:
-    mov dword [shutdown], 1
-    NOTIFYPIC
-    sti
-.haltLoop:
-    hlt
-    jmp .haltLoop
 
 global waitpid
 waitpid:
@@ -242,14 +287,17 @@ add_fd_object:
 
 section .data
 
-proc_count   dd 0
-cur_process  dd 0
-tss_descr    dd 0
-shutdown     dd 0
+proc_count   dd TSS_size * 2
+cur_process  dd TSS_size
+kernel_loop  dd 0
 
-process_ready: times PROCESS_LIMIT db 0
+section .rodata
+
+goodbye: db 'All processes finished. Shutting down.', 10, 0
 
 section .bss
+
+tss_descr    resd 1
 
 align 4096
 global tss_table
