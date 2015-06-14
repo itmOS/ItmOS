@@ -1,7 +1,9 @@
-%include "kernel/io/pipe.inc"
+%include "kernel/io/structs.inc"
+%include "kernel/io/pipe_pure.inc"
 %include "kernel/io/io.inc"
 %include "stdlib.inc"
 %include "util/macro.inc"
+%include "sched/sched.inc"
 
 PIPE_SIZE:	equ 256
 struc pipe_obj
@@ -38,6 +40,43 @@ pipe_obj_new:
 
 	pop ecx
 	pop ebx
+
+	pop ebp
+	ret
+
+;;; int pipe_fds_new(int res[2]);
+global pipe_fds_new
+pipe_fds_new:
+	push ebp
+	mov ebp, esp
+
+	push ecx
+	push ebx
+
+	sub esp, 8
+
+	push esp
+	call pipe_obj_new
+	add esp, 4
+
+	mov ecx, [ebp + 8]
+	mov ebx, [esp + 4]
+	push ebx
+	call add_fd_object
+	add esp, 4
+	mov [ecx], eax
+	mov ebx, [esp]
+	push ebx
+	call add_fd_object
+	add esp, 4
+	mov [ecx + 4], eax
+
+	xor eax, eax
+
+	add esp, 8
+
+	pop ebx
+	pop ecx
 
 	pop ebp
 	ret
