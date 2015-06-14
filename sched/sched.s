@@ -70,23 +70,28 @@ sch_bootstrap:
     ADD_SYSTEM_FUNCTION 0, exit
     ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
+    ADD_SYSTEM_FUNCTION 9, waitpid
     mov esp, [tss_table + TSS_size + TSS.esp]
     INITHANDLER context_switch, IRQ_BASE, 0x8E00
     loadUserspaceSel
     retf ; Diving into our first user process!
 
 userspace:
-    mov dword [5 * 1024], 0
-    mov byte [5 * 1024], 'P'
-    mov byte [5 * 1024 + 2], 'C'
+    mov word [5 * 1024], 0
     mov eax, 6
     int 0x80
-    mov ecx, 40
+    push eax
     test eax, eax
     jz .child
-.parent:
+    mov byte [5 * 1024], 'P'
+    mov ecx, 20
+    jmp .printer
+.child:
+    mov byte [5 * 1024], 'C'
+    mov ecx, 60
+.printer:
     test ecx, ecx
-    jz .exit
+    jz .wait
     mov eax, 2
     mov edi, 2
     mov esi, 5 * 1024
@@ -94,40 +99,44 @@ userspace:
     int 0x80
     pop ecx
     dec ecx
-    jmp .parent
-.child:
-    test ecx, ecx
-    jz .exit
+    jmp .printer
+.wait:
+    pop edi
+    test edi, edi
+    jz .childComputing
+    mov eax, 9
+    int 0x80
+    mov esi, parString - userspace + 4 * 1024
+    jmp .exit
+.childComputing:
     mov eax, 2
     mov edi, 2
-    mov esi, 5 * 1024 + 2
-    push ecx
+    mov esi, chlBusy - userspace + 4 * 1024
     int 0x80
-    pop ecx
-    dec ecx
-    jmp .child
+.loop:
+    inc ecx
+    cmp ecx, 100000000
+    jl .loop
+    mov esi, chlString - userspace + 4 * 1024
 .exit:
-    ;mov dword [5 * 1024], 'Fini'
-    ;mov dword [5 * 1024 + 4], 'shed'
-    ;mov byte [5 * 1024 + 5], 10
-    ;mov byte [5 * 1024 + 6], 0
-    ;mov eax, 2
-    ;mov edi, 2
-    ;mov esi, 5 * 1024
-    ;int 0x80
+    mov eax, 2
+    mov edi, 2
+    int 0x80
     xor eax, eax
     xor edi, edi
     int 0x80
+
+parString: db 'parent: waited for child, finished', 10, 0
+chlString: db 'child: exited', 10, 0
+chlBusy:   db 'child: performing a complex computation', 10, 0
 userspace_end
 
 exit:
-    ;xchg bx, bx
     mov eax, [kernel_loop]
     mov dword [tss_table + TSS.status + eax], edi
     jmp kernel_routine
 
 writeScreen:
-    ;xchg bx, bx
     cmp edi, 2
     jne .failure
     cmp esi, KERNEL_VMA
@@ -177,24 +186,23 @@ current_pid:
 
 global suspend_syscall
 suspend_syscall:
-    pushf
     pusha
     mov eax, [cur_process]
     test eax, eax
     jz .kernel
-    ;xchg bx, bx
     mov dword [tss_table + eax + TSS.status], -2
     call context_switch.systemFunction
     jmp .return
 .kernel:
+    pushf
     mov eax, [kernel_loop]
     cli ; Danger zone: same as in syscall_finished
     lea ecx, [esp - 4]
     mov [tss_table + eax + TSS.esp], ecx
     call kernel_routine
+    popf
 .return:
     popa
-    popf
     ret
 
 kernel_routine:
@@ -273,13 +281,12 @@ context_switch:
 
 global waitpid
 waitpid:
-    mov ecx, [esp + 4]
-    shl ecx, TSS_POWER
+    shl edi, TSS_POWER
 .loop:
-    mov eax, [tss_table + ecx + TSS.status]
-    cmp eax, -1
-    jne .return
-    hlt
+    mov eax, [tss_table + edi + TSS.status]
+    cmp eax, 0
+    jge .return
+    call suspend_syscall
     jmp .loop
 .return:
     ret
