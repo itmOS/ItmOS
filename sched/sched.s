@@ -107,6 +107,9 @@ userspace:
     mov eax, 9
     int 0x80
     mov esi, parString - userspace + 4 * 1024
+    cmp eax, 123
+    je .exit
+    mov esi, parentWut - userspace + 4 * 1024
     jmp .exit
 .childComputing:
     mov eax, 2
@@ -123,9 +126,10 @@ userspace:
     mov edi, 2
     int 0x80
     xor eax, eax
-    xor edi, edi
+    mov edi, 123
     int 0x80
 
+parentWut: db 'parent: failed to wait for child, wtf', 10, 0
 parString: db 'parent: waited for child, finished', 10, 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
@@ -160,6 +164,7 @@ fork:
     lea edi, [tss_table + ebx]
     rep movsd
     mov [tss_table + ebx + TSS.cr3], edx
+    mov [tss_table + ebx + TSS.parent], eax
     mov ecx, ebx
     sub ecx, [kernel_loop]
     add [tss_table + ebx + TSS.esp0], ecx
@@ -282,6 +287,9 @@ context_switch:
 global waitpid
 waitpid:
     shl edi, TSS_POWER
+    mov eax, [kernel_loop]
+    cmp eax, [tss_table + edi + TSS.parent]
+    jne .failure
 .loop:
     mov eax, [tss_table + edi + TSS.status]
     cmp eax, 0
@@ -289,6 +297,9 @@ waitpid:
     call suspend_syscall
     jmp .loop
 .return:
+    ret
+.failure:
+    mov eax, -1
     ret
 
 global get_fd_object
@@ -354,6 +365,7 @@ struc TSS
     .esp      resd 1
     align 4
     .status   resd 1
+    .parent   resd 1
     .fdTable  resd MAX_FD
     .stackBot resb ((1 << TSS_POWER) - $)
     .stackTop
