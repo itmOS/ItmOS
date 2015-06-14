@@ -13,6 +13,7 @@ extern ata_register_tests
 extern string_register_tests
 extern list_register_tests
 extern kbd_register_tests
+extern fs_register_tests
 
 extern mem_register_tests
 extern init_mem_manager
@@ -41,7 +42,8 @@ kernel_main:
 	call list_register_tests
     call mem_register_tests
 	call kbd_register_tests
-	
+	call fs_register_tests
+
 	ATA_IDENTIFY
 
 	TEST_RUN_ALL

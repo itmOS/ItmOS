@@ -54,6 +54,11 @@ $(ISO): $(KERNEL)
 $(HARD): $(KERNEL)
 	dd if=/dev/zero of=$(HARD) count=40320
 	$(PARTED) $(HARD) $(PARTEDFLAGS)
+	echo "Hello world!" > HELLO.TXT
+	mkfs.fat -F 16 $(HARD)
+	mcopy -i $(HARD) HELLO.TXT ::
+	mcopy -i $(HARD) LIPSUM.TXT ::
+	rm -f HELLO.TXT
 
 $(KERNEL): $(OBJ)
 	-mkdir -p $(OUTPUT_DIR)
