@@ -5,8 +5,8 @@
 // counstant if they would block
 #define IO_WOULD_BLOCK -(1 << 1)
 #define IO_READ (1 << 1)
-#define IO_WRITE (1 << 1)
-#define IO_CLOSE (1 << 1)
+#define IO_WRITE (1 << 2)
+#define IO_CLOSE (1 << 3)
 
 typedef void fd_obj;
 // events is logical or of the IO_* macros
