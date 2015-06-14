@@ -71,13 +71,14 @@
         jz .failfree
         mov ecx, eax
         ;; Map to edx index page physical address we got
-        push edx
-        sal dword edx, 12
-        CCALL map_page, edx, eax, dword %4
-        pop edx
+        push ecx
+        mov ecx, edx
+        sal dword ecx, 12
+        CCALL map_page, ecx, eax, dword %4
+        pop ecx
         ;; If fail we need to free already mapped pages and free current physical page
         test eax, eax
-        jnz .finishloop1
+        jz .finishloop1
         CCALL put_pages, ecx, dword 1
         jmp .failfree
 .finishloop1:
