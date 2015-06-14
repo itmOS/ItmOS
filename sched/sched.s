@@ -107,6 +107,14 @@ userspace:
     dec ecx
     jmp .child
 .exit:
+    ;mov dword [5 * 1024], 'Fini'
+    ;mov dword [5 * 1024 + 4], 'shed'
+    ;mov byte [5 * 1024 + 5], 10
+    ;mov byte [5 * 1024 + 6], 0
+    ;mov eax, 2
+    ;mov edi, 2
+    ;mov esi, 5 * 1024
+    ;int 0x80
     xor eax, eax
     xor edi, edi
     int 0x80
@@ -114,10 +122,9 @@ userspace_end
 
 exit:
     ;xchg bx, bx
-    mov eax, [cur_process]
+    mov eax, [kernel_loop]
     mov dword [tss_table + TSS.status + eax], edi
-    xor esi, esi
-    jmp context_switch.systemFunction
+    jmp kernel_routine
 
 writeScreen:
     ;xchg bx, bx
@@ -170,12 +177,12 @@ current_pid:
 
 global suspend_syscall
 suspend_syscall:
+    pushf
     pusha
     mov eax, [cur_process]
     test eax, eax
     jz .kernel
     ;xchg bx, bx
-    xor esi, esi
     mov dword [tss_table + eax + TSS.status], -2
     call context_switch.systemFunction
     jmp .return
@@ -187,6 +194,7 @@ suspend_syscall:
     call kernel_routine
 .return:
     popa
+    popf
     ret
 
 kernel_routine:
@@ -196,6 +204,9 @@ kernel_routine:
     add eax, TSS_size
     cmp eax, [proc_count]
     jl .consider
+    cli
+    call context_switch.systemFunction
+    sti
     mov eax, TSS_size
 .consider:
     cmp dword [tss_table + eax + TSS.status], -2
@@ -228,7 +239,10 @@ syscall_finished:
 
 context_switch:
     mov esi, 1
+    jmp .start
 .systemFunction:
+    xor esi, esi
+.start:
     mov eax, [cur_process]
     mov [tss_table + eax + TSS.esp], esp
     shr eax, TSS_POWER
