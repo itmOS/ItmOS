@@ -25,7 +25,14 @@ typedef struct fd_obj_t  {
   char data[];
 } fd_obj;
 
+// Increase counter
+// To release ownership call obj->close(obj)
+void io_take_ownership(fd_obj* obj);
+
 // events is logical or of the IO_* macros
 void io_notify_available(fd_obj* obj, int events);
+int io_read(int fd, void* buf, size_t count);
+int io_write(int fd, void* buf, size_t count);
+int io_close(int fd);
 
 #endif

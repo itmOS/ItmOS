@@ -24,4 +24,10 @@ struc fd_obj
 .data: resd 0
 endstruc
 
+IO_WOULD_BLOCK: equ -(1 << 1)
+
+IO_READ: equ (1 << 1)
+IO_WRITE: equ (1 << 2)
+IO_CLOSE: equ (1 << 3)
+
 %endif

@@ -2,14 +2,10 @@
 %define KERNEL_IO_IO_INC
 
 %include "kernel/io/structs.inc"
-
-IO_WOULD_BLOCK: equ -(1 << 1)
-
-IO_READ: equ (1 << 1)
-IO_WRITE: equ (1 << 2)
-IO_CLOSE: equ (1 << 3)
-
 ;; see io.h
 extern io_notify_available
+extern io_read
+extern io_write
+extern io_close
 
 %endif
