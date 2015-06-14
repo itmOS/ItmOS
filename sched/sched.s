@@ -55,7 +55,7 @@ sch_bootstrap:
     call new_page_table
     mov [tss_table + TSS_size + TSS.cr3], eax
     mov dword [tss_table + TSS_size + TSS.stackTop - 4], USERSPACE_DATA
-    mov dword [tss_table + TSS_size + TSS.stackTop - 8], 5 * 1024 - 1
+    mov dword [tss_table + TSS_size + TSS.stackTop - 8], 5 * 1024 - 4
     mov dword [tss_table + TSS_size + TSS.stackTop - 12], USERSPACE_CODE
     mov dword [tss_table + TSS_size + TSS.stackTop - 16], 4 * 1024
     mov dword [tss_table + TSS_size + TSS.status], -1
