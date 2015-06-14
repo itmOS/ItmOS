@@ -12,16 +12,14 @@
 
 // Struct representing some opened file descriptor info
 // Pointer to this structure can be shared between several processes
-typedef struct {
+typedef struct fd_obj_t  {
   // Owners counter (like std::shared_ptr)
   int counter;
 
   // Pointers to the io methods.
-  int (*read)(struct fd_obj* this, void* buf, size_t count);
-
-  int (*write)(struct fd_obj* this, void* buf, size_t count);
-
-  int (*close)(struct fd_obj* this);
+  int (*read)(struct fd_obj_t* this, void* buf, size_t count);
+  int (*write)(struct fd_obj_t* this, void* buf, size_t count);
+  int (*close)(struct fd_obj_t* this);
 
   // All the rest is the object's private data
   char data[];
