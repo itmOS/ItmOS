@@ -13,13 +13,18 @@ typedef struct
   char start[];
 } pipe_real;
 
+static void free_pipe_ptr(pipe_t** p)
+{
+  pipe_free(*p);
+}
+
 static int test_simple(void)
 {
 
   char* S = "Hello, World\n";
   int S_n = i_strlen(S);
 
-  __attribute__((cleanup(pipe_free))) pipe_t* pipe = pipe_new(100500);
+  __attribute__((cleanup(free_pipe_ptr))) pipe_t* pipe = pipe_new(100500);
   ASSERT(pipe);
 
   char buffer[256];
@@ -39,7 +44,7 @@ static int test_hard(void)
 {
   size_t CAP = 20;
 
-  __attribute__((cleanup(pipe_free))) pipe_t* pipe = pipe_new(CAP);
+  __attribute__((cleanup(free_pipe_ptr))) pipe_t* pipe = pipe_new(CAP);
   ASSERT(pipe);
   ASSERT(pipe_read_available(pipe) == 0);
   ASSERT(pipe_write_available(pipe) == CAP);
