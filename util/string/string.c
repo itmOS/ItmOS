@@ -1,4 +1,4 @@
-#include "string.h"
+#include "i_string.h"
 
 void i_strcpy(char *dest, const char *src) {
     while ((*dest++ = *src++));
@@ -14,4 +14,14 @@ void i_memset(void *ptr, int value, int num) {
     unsigned char *char_ptr = ptr;
     while (num--)
         *char_ptr++ = (unsigned char) value;
+}
+
+int i_strlen(const char* s)
+{
+  int res = 0;
+  while (*s) {
+    ++res;
+    ++s;
+  }
+  return res;
 }

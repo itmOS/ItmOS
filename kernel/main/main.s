@@ -12,6 +12,7 @@ extern ata_register_tests
 extern string_register_tests
 extern list_register_tests
 extern kbd_register_tests
+extern pipe_register_tests
 
 ;;; Entry point of the kernel.
 kernel_main:
@@ -23,6 +24,7 @@ kernel_main:
 	call string_register_tests
 	call list_register_tests
 	call kbd_register_tests
+	call pipe_register_tests
 
 	ATA_IDENTIFY
 
