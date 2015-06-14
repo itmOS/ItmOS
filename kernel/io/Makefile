@@ -1,5 +1,5 @@
 OUTPUT = io.a
-OBJ = io.o pipe.o pipe_test.o
+OBJ = io.o pipe.o pipe_test.o pipe_obj.o pipe_obj_test.o
 
 all: $(OUTPUT)
 
