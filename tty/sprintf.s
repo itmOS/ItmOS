@@ -195,6 +195,8 @@ ullformat:
         cmp edx, 0
         jg ..@printPlus
         jnz ..@printMinus
+        test bl, LONG_LONG
+        jnz ..@printPlus
         cmp eax, 0
         jge ..@printPlus
 ..@printMinus:

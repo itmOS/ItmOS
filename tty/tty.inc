@@ -54,16 +54,13 @@ pop eax
 %macro TTY_PUTS_STYLED 2
 TTY_SAVE_STYLE
 TTY_SET_STYLE %1
-push esi
-mov esi, %2
-call tty_puts
-pop esi
+TTY_PUTS %2
 TTY_RESTORE_STYLE
 %endmacro
 
 %macro TTY_PUTS 1
 push esi
-mov edi, %1
+mov esi, %1
 call tty_puts
 pop esi
 %endmacro
