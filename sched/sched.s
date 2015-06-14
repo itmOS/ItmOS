@@ -40,6 +40,10 @@ sch_bootstrap:
     mov word [tss_table + TSS.ss0], PRIVILEGED_DATA
     mov eax, cr3
     mov [tss_table + TSS.cr3], eax
+    mov ebp, esp
+    mov esp, tss_table + TSS.stackTop
+    pushf
+    mov esp, ebp
     mov dword [tss_table + TSS.stackTop - 4], kernel_routine
     mov dword [tss_table + TSS.status], -1
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 4
@@ -109,13 +113,14 @@ userspace:
 userspace_end
 
 exit:
-    xchg bx, bx
+    ;xchg bx, bx
     mov eax, [cur_process]
     mov dword [tss_table + TSS.status + eax], edi
-    jmp context_switch
+    xor esi, esi
+    jmp context_switch.systemFunction
 
 writeScreen:
-    xchg bx, bx
+    ;xchg bx, bx
     cmp edi, 2
     jne .failure
     cmp esi, KERNEL_VMA
@@ -169,13 +174,14 @@ suspend_syscall:
     mov eax, [cur_process]
     test eax, eax
     jz .kernel
-    xchg bx, bx
-    mov dword [tss_table + eax + TSS.status], -2
+    ;xchg bx, bx
     xor esi, esi
+    mov dword [tss_table + eax + TSS.status], -2
     call context_switch.systemFunction
     jmp .return
 .kernel:
     mov eax, [kernel_loop]
+    cli ; Danger zone: same as in syscall_finished
     lea ecx, [esp - 4]
     mov [tss_table + eax + TSS.esp], ecx
     call kernel_routine
@@ -207,11 +213,15 @@ syscall_finished:
     jne .return
     push eax
     mov eax, [kernel_loop]
-    cli
+    cli ; Danger zone: putting a return address on the stack
+        ; and switching it
     lea ecx, [esp - 4]
     mov [tss_table + eax + TSS.esp], ecx
+    mov dword [ecx], .ourProcess
     mov dword [tss_table + eax + TSS.status], -1
-    call kernel_routine
+    mov esp, tss_table + TSS.stackTop - 4
+    jmp kernel_routine
+.ourProcess:
     pop eax
 .return
     ret
