@@ -26,6 +26,9 @@ typedef struct pipe_obj_t
 // Allocate new fd_objs with the pipe inside
 void pipe_obj_new(fd_obj* res[2]);
 
+// pipe syscall
+int pipe_fds_new(int res[2]);
+
 pipe_t* pipe_new(size_t cap);
 void pipe_free(pipe_t* pipe);
 // Note that all this operations are non-blocking

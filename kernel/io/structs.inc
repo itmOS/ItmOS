@@ -2,6 +2,8 @@
 %define KERNEL_IO_STRUCTS_INC
 
 MAX_FD_COUNT: equ 256
+PIPE_READER: equ 1
+PIPE_WRITER: equ 2
 
 ;;; Struct representing some opened file descriptor info
 ;;; Pointer to this structure can be shared between some processes
