@@ -1,7 +1,10 @@
-OUTPUT = sched.a
-OBJ = sched.o test_userspace.o
+OUTPUT = libc.a
+OBJ = syscalls.o
 
 all: $(OUTPUT)
+
+list-objs:
+	@echo $(foreach O,$(OBJ),$(shell readlink -f $(O)))
 
 $(OUTPUT): $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^
