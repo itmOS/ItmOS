@@ -7,14 +7,14 @@ extern init_syscalls
 
 ;; Use this from the syscall body to call the real implementation
 %macro FORWARD_SYSCALL_ARGS 2
-       %if %2 > 0
-       push edi
-       %if %2 > 1
-       push esi
-       %if %2 > 2
-       push ebx
        %if %2 > 3
        push edx
+       %if %2 > 2
+       push ebx
+       %if %2 > 1
+       push esi
+       %if %2 > 0
+       push edi
        %endif
        %endif
        %endif

@@ -27,3 +27,4 @@ close_syscall:
 
 pipe_syscall:
 	FORWARD_SYSCALL_ARGS pipe_fds_new, 1
+	ret
