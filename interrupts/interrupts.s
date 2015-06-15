@@ -203,7 +203,7 @@ interrupt_handlers:
 
 global system_functions
 system_functions:
-    times SYSTEM_FUNCTIONS_CNT db 0
+    times SYSTEM_FUNCTIONS_CNT dd 0
 
 timer_symbol:	        db      'a'
 MASTER_PIC_MASK:        db     0x00

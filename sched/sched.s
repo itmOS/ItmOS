@@ -45,7 +45,7 @@ sch_bootstrap:
     pushf
     mov esp, ebp
     mov dword [tss_table + TSS.stackTop - 4], kernel_routine
-    mov dword [tss_table + TSS.status], -1
+    mov dword [tss_table + TSS.status], RUNNING
     mov dword [tss_table + TSS.esp], tss_table + TSS.stackTop - 4
 
     mov eax, tss_table + TSS_size
@@ -58,7 +58,7 @@ sch_bootstrap:
     mov dword [tss_table + TSS_size + TSS.stackTop - 8], 5 * 1024 - 4
     mov dword [tss_table + TSS_size + TSS.stackTop - 12], USERSPACE_CODE
     mov dword [tss_table + TSS_size + TSS.stackTop - 16], 4 * 1024
-    mov dword [tss_table + TSS_size + TSS.status], -1
+    mov dword [tss_table + TSS_size + TSS.status], BLOCKED
     mov dword [tss_table + TSS_size + TSS.esp], tss_table + TSS_size + TSS.stackTop - 16
 
     mov cr3, eax
@@ -137,7 +137,11 @@ userspace_end
 
 exit:
     mov eax, [kernel_loop]
-    mov dword [tss_table + TSS.status + eax], edi
+    mov dword [tss_table + eax + TSS.status], edi
+    mov eax, [tss_table + eax + TSS.parent]
+    shr eax, TSS_POWER
+    push eax
+    call unblock_pid
     jmp kernel_routine
 
 writeScreen:
@@ -170,7 +174,7 @@ fork:
     add [tss_table + ebx + TSS.esp0], ecx
     lea ecx, [ecx + esp - 4]
     mov [tss_table + ebx + TSS.esp], ecx
-    mov dword [tss_table + ebx + TSS.status], -1
+    mov dword [tss_table + ebx + TSS.status], RUNNING
     mov dword [ecx], .childProcess
     shr ebx, TSS_POWER
     lock add dword [proc_count], TSS_size
@@ -195,7 +199,7 @@ suspend_syscall:
     mov eax, [cur_process]
     test eax, eax
     jz .kernel
-    mov dword [tss_table + eax + TSS.status], -2
+    mov dword [tss_table + eax + TSS.status], CALLING
     call context_switch.systemFunction
     jmp .return
 .kernel:
@@ -203,6 +207,7 @@ suspend_syscall:
     mov eax, [kernel_loop]
     cli ; Danger zone: same as in syscall_finished
     lea ecx, [esp - 4]
+    mov dword [tss_table + eax + TSS.status], BLOCKED
     mov [tss_table + eax + TSS.esp], ecx
     call kernel_routine
     popf
@@ -210,20 +215,36 @@ suspend_syscall:
     popa
     ret
 
+global unblock_pid
+unblock_pid:
+    mov ecx, [esp + 4]
+    shl ecx, TSS_POWER
+    mov eax, BLOCKED
+    mov edx, CALLING
+    cmpxchg [tss_table + ecx + TSS.status], edx
+    ret
+
 kernel_routine:
     sti
     mov eax, [kernel_loop]
+    mov ecx, eax
 .loopThrough:
     add eax, TSS_size
     cmp eax, [proc_count]
-    jl .consider
+    jl .anybodyThere
+    mov eax, TSS_size
+.anybodyThere:
+    cmp dword [tss_table + eax + TSS.status], CALLING
+    je .consider
+    cmp eax, ecx
+    jne .loopThrough
+    mov dword [tss_table + TSS.status], BLOCKED
+    push eax
+    push ecx
     cli
     call context_switch.systemFunction
-    sti
-    mov eax, TSS_size
+    jmp kernel_routine
 .consider:
-    cmp dword [tss_table + eax + TSS.status], -2
-    jne .loopThrough
     mov [kernel_loop], eax
     mov ecx, [tss_table + eax + TSS.cr3]
     mov [tss_table + TSS.cr3], ecx
@@ -242,7 +263,7 @@ syscall_finished:
     lea ecx, [esp - 4]
     mov [tss_table + eax + TSS.esp], ecx
     mov dword [ecx], .ourProcess
-    mov dword [tss_table + eax + TSS.status], -1
+    mov dword [tss_table + eax + TSS.status], RUNNING
     mov esp, tss_table + TSS.stackTop - 4
     jmp kernel_routine
 .ourProcess:
@@ -252,16 +273,25 @@ syscall_finished:
 
 context_switch:
     mov esi, 1
-    jmp .start
+    cmp byte [halted], 0
+    je .start
+    NOTIFYPIC
+    ret
 .systemFunction:
     xor esi, esi
 .start:
     mov eax, [cur_process]
+    mov ecx, eax
     mov [tss_table + eax + TSS.esp], esp
     shr eax, TSS_POWER
+    mov ebx, eax
     mov edx, [proc_count]
     shr edx, TSS_POWER
 .loop:
+    cmp dword [tss_table + ecx + TSS.status], CALLING
+    jne .contLoop
+    mov dword [tss_table + TSS.status], RUNNING
+.contLoop:
     inc eax
     cmp eax, edx
     jl .check
@@ -269,8 +299,12 @@ context_switch:
 .check:
     mov ecx, eax
     shl ecx, TSS_POWER
-    cmp dword [tss_table + ecx + TSS.status], -1
+    cmp dword [tss_table + ecx + TSS.status], RUNNING
+    je .consider
+    cmp eax, ebx
     jne .loop
+    jmp .halt
+.consider:
     mov eax, ecx
     mov [cur_process], eax
     add eax, tss_table
@@ -283,6 +317,19 @@ context_switch:
     NOTIFYPIC
 .return:
     ret
+.halt:
+    mov byte [halted], 1
+    test esi, esi
+    jz .finish
+    NOTIFYPIC
+.finish:
+    DISABLE_MASTER_BIT 0x01
+    sti
+    hlt
+    cli
+    ENABLE_MASTER_BIT 0x01
+    mov byte [halted], 0
+    jmp .systemFunction
 
 global waitpid
 waitpid:
@@ -304,13 +351,13 @@ waitpid:
 
 global get_fd_object
 get_fd_object:
-    mov eax, [cur_process]
-    mov eax, [cur_process + TSS.fdTable + 4 * edi]
+    mov eax, [kernel_loop]
+    mov eax, [kernel_loop + TSS.fdTable + 4 * edi]
     ret
 
 global add_fd_object
 add_fd_object:
-    mov esi, [cur_process]
+    mov esi, [kernel_loop]
     lea esi, [tss_table + ecx + TSS.fdTable]
     mov edx, esi
     mov ecx, MAX_FD
@@ -331,7 +378,8 @@ section .data
 
 proc_count   dd TSS_size * 2
 cur_process  dd TSS_size
-kernel_loop  dd 0
+kernel_loop  dd TSS_size
+halted       dd 0
 
 section .rodata
 
@@ -349,6 +397,11 @@ tss_table:
 MAX_FD        equ 64
 TSS_POWER     equ 10
 PROCESS_LIMIT equ 256
+
+;; Process statuses:
+RUNNING equ -1
+CALLING equ -2
+BLOCKED equ -3
 
 struc TSS
               resd 1
