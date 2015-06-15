@@ -7,5 +7,6 @@ extern io_notify_available
 extern io_read
 extern io_write
 extern io_close
+extern io_initialize
 
 %endif

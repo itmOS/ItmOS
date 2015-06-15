@@ -8,6 +8,7 @@ section .text
 %include "interrupts/interrupts.inc"
 %include "multiboot/multiboot.inc"
 %include "kernel/syscalls/syscalls.inc"
+%include "kernel/io/io.inc"
 
 global kernel_main
 extern ata_register_tests
@@ -50,6 +51,7 @@ kernel_main:
 	call hash_register_tests
 	ATA_IDENTIFY
 
+	call io_initialize
 	call init_syscalls
 	TEST_RUN_ALL
 	push dword -80
