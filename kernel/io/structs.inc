@@ -24,11 +24,4 @@ struc fd_obj
 .data: resd 0
 endstruc
 
-struc fd_table
-;; fd_obj* objs[MAX_FD_COUNT]
-.objs: resd MAX_FD_COUNT
-
-;;
-endstruc
-
 %endif

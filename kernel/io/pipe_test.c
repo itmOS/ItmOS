@@ -19,7 +19,8 @@ static int test_simple(void)
   char* S = "Hello, World\n";
   int S_n = i_strlen(S);
 
-  __attribute__((cleanup(pipe_free))) pipe_t* pipe = pipe_new(20);
+  __attribute__((cleanup(pipe_free))) pipe_t* pipe = pipe_new(100500);
+  ASSERT(pipe);
 
   char buffer[256];
   pipe_write(pipe, (void*) S, S_n + 1);
@@ -39,6 +40,7 @@ static int test_hard(void)
   size_t CAP = 20;
 
   __attribute__((cleanup(pipe_free))) pipe_t* pipe = pipe_new(CAP);
+  ASSERT(pipe);
   ASSERT(pipe_read_available(pipe) == 0);
   ASSERT(pipe_write_available(pipe) == CAP);
 

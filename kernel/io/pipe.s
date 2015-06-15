@@ -1,3 +1,5 @@
+%include 'stdlib.inc'
+
 struc pipe
 .cap: resd 1
 .head: resd 1
@@ -7,17 +9,15 @@ struc pipe
 endstruc
 
 section .data
-;; TODO: Fix this when adding malloc
-no_malloc_storage: resd 10 * 4096
-allocated: dd 0
 
-;; TODO: Fix this when adding malloc
 ;; pipe_t* allocate_pipe(size_t capacity as $ebx)
 allocate_pipe:
-	mov eax, [allocated]
-	add eax, no_malloc_storage
-	add [allocated], ebx
-	add dword [allocated], pipe_size
+	push ebx
+	lea ebx, [ebx * 4 + pipe_size]
+	push ebx
+	call malloc
+	add esp, 4
+	pop ebx
 	ret
 
 global pipe_new
@@ -43,8 +43,7 @@ pipe_new:
 global pipe_free
 ;;; void pipe_free(pipe_t*);
 pipe_free:
-       ;; TODO: Free when adding malloc
-	ret
+	jmp free
 
 ;;; int pipe_write(pipe_t*, char*, size_t)
 global pipe_write
