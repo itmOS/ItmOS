@@ -27,7 +27,7 @@ pipe_obj_new:
 	push ebx
 	push ecx
 
-	xchg bx, bx
+	;xchg bx, bx
 	CCALL pipe_new, dword PIPE_SIZE
 	mov ebx, eax
 	xor eax, eax
