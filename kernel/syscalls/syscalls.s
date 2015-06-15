@@ -14,17 +14,17 @@ init_syscalls:
 	ret
 
 read_syscall:
-	FORWARD_SYSCALL_ARGS io_read, 3
+	FORWARD_SYSCALL_ARGS io_read
 	ret
 
 write_syscall:
-	FORWARD_SYSCALL_ARGS io_write, 3
+	FORWARD_SYSCALL_ARGS io_write
 	ret
 
 close_syscall:
-	FORWARD_SYSCALL_ARGS io_close, 1
+	FORWARD_SYSCALL_ARGS io_close
 	ret
 
 pipe_syscall:
-	FORWARD_SYSCALL_ARGS pipe_fds_new, 1
+	FORWARD_SYSCALL_ARGS pipe_fds_new
 	ret
