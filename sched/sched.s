@@ -82,8 +82,8 @@ extern test_userspace
     retf ; Diving into our first user process!
 
 userspace:
-    ;lea eax, [4 * 1024 + userspace_end - userspace]
-    ;call eax
+    lea eax, [4 * 1024 + userspace_end - userspace]
+    call eax
     mov word [5 * 1024], 0
     mov eax, 6
     int 0x80
@@ -371,6 +371,7 @@ add_fd_object:
     mov edx, edi
     mov ecx, MAX_FD
     xor eax, eax
+    cld
     repne scasd
     test ecx, ecx
     jz .failure
