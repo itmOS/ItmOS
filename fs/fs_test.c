@@ -8,17 +8,22 @@ char buf[10500]; // why not lol
 struct fdobject* mda;
 
 int open_file(void) {
-    //mda = fat_open("LIPSUM  TXT", 0);
-    mda = fat_open("HELLO   TXT", 0);
+    mda = fat_open("LIPSUM  TXT", 0);
+    //mda = fat_open("HELLO   TXT", 0);
     return !mda;
 }
 
 int read_file(void) {
     if (mda) {
-        int l = mda->read(mda, buf, 0);
-        if (l < 0)
-            return l;
-        //tty_printf(buf);
+        int offset = 0;
+        int l;
+        while ((l = mda->read(mda, buf + offset, 9000))) {
+            tty_printf("read() returned %d\n", l);
+            if (l < 0)
+                return l;
+            offset += l;
+        }
+        tty_printf(buf + 2040);
         return 0;
     }
     return -1;

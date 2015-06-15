@@ -88,43 +88,47 @@ section .bss
     my_cool_heap: resq 8192
     fat: resw 65536                    ; 2**16 == 65536 clusters allowed
     bootrecord: resb boot_record_size
-    dirtable: resb file_entry_size*512 ; only 512 root directory entries allowed for FAT16
+    dirtable: resb file_entry_size * 512 ; only 512 root directory entries allowed for FAT16
     dirtable_offset: resd 1
     clusters: resd 65536               ; pointers to cached clusters
 
 
 section .text
 
-; esi — number of the cluster
-; ecx — sectors per cluster
+;;; NOT A CDECL FUNCTION!
+;;; takes 3 arguments:
+;;; esi — number of the cluster
+;;; ebx — bytes per sector
+;;; ecx — sectors per cluster
+;;; on return, the cluster number ESI is guaranteed to be in the cache
 ensure_cluster:
-    mov  edx, eax ; edx is the offset
+    lea  eax, [esi - 2]
+    mul  ecx
+    add  eax, 32
+    add  eax, [dirtable_offset]
+    mov  edx, eax ; edx is the offset of the cluster on the disk
     mov  eax, [clusters + 4*esi]
     test eax, eax
     jnz  .return
 
 
+    ;xchg bx, bx
+    push ecx
     push edx
     push esi
-    mov  ecx, 512*4
-    push ecx
+    mov  eax, ebx
+    mul  ecx
+    push eax
     call malloc
-    pop  ecx
+    add  esp, 4
     pop  esi
     pop  edx
-    mov  [clusters + 4*esi], eax
-    ;test eax, eax      ; мда чёт маллок
-    ;jz   .return
-    push esi
-    mov  ecx, 4
+    pop  ecx
+    mov  [clusters + 4 * esi], eax
+    test eax, eax
+    jz   .return
     ATA_INSEG edx, ecx, eax
 
-    mov  eax, [clusters + 4*esi]
-    push eax
-    call tty_printf
-    pop  eax
-
-    pop  esi
     .return
     ret
 
@@ -245,12 +249,15 @@ fat_open:
         lea  edx, [dirtable + eax + file_entry.name]
         cmp  byte [edx], 0
         je   .not_found
+        cmp  byte [edx + 11], 0
+        je   .next_iter     ; LFN — just skip it
         mov  [esp], edx     ; put the first argument for i_memcmp on the stack
         mov  [ebp - 4], ecx ; save ECX in the local variable
         call i_memcmp
         mov  ecx, [ebp - 4] ; restore ECX back
         test eax, eax
         jz   .found
+        .next_iter
         inc  ecx ; ECX is the number of the file entry
         jmp  .loop
     .found
@@ -298,59 +305,73 @@ fat_read:
     mov  bx,  [bootrecord + boot_record.bytes_per_sector]
     xor  edx, edx
     mov  edi, [ebp + 12]   ; char* dest
-    mov  ecx, [ebp + 8]    ; fat_fdobject*
+    mov  ecx, [ebp + 8]    ; fat_fdobject* this
     xor  esi, esi
     mov  si,  [ecx + fat_fdobject.current]  ; number of the current cluster
     xor  ecx, ecx
     mov  cl,  [bootrecord + boot_record.sectors_per_cluster]
-    .loop
-        cmp  si, 0FFFFh
-        je   .end
 
-        ; PRINT_NUM esi ; print the cluster number for debug purposes
+    xor   eax, eax
+    cmp   si, 0FFFFh
+    je    .end
 
-        mov  eax, esi
-        sub  eax, 2
-        mul  ecx
-        add  eax, 32
-        add  eax, [dirtable_offset]
+    mov   eax, esi
+    sub   eax, 2
+    mul   ecx
+    add   eax, 32
+    add   eax, [dirtable_offset]
 
-        push ecx
-        push edi
-
-
-        push eax
-        push ecx
-        push edx
-        push edi
-        push esi
-        call ensure_cluster
-        pop  esi
-        pop  edi
-        pop  edx
-        pop  ecx
-        pop  eax
+    push  ecx
+    call  ensure_cluster
+    pop   ecx
 
 
+    mov   eax, ecx
+    mul   ebx
 
-        ATA_INSEG eax, ecx, edi
-        pop  edi
-        pop  ecx
-        mov  eax, ecx
-        mul  ebx
-        add  edi, eax       ; we’ve read a cluster, so let’s add its size to edi
-        add  [ecx + fat_fdobject.offset], eax
-        add  esi, esi  ; each cluster’s number takes 2 bytes
-        mov  si, [fat + esi] ; take the next cluster
-        push ecx
-        pop  ecx
-        jmp  .loop
+    push  esi
+    mov   esi, [clusters + 4*esi]
+    mov   ecx, [ebp + 8] ; ECX := this
+    mov   edx, [ecx + fat_fdobject.clust_offset]
+    sub   eax, edx   ; eax now contains the number of bytes left in the cluster
+    ;; now we need a minimum of 3 values:
+    ;; * the count parameter
+    ;; * the number of bytes left in the cluster
+    ;; * the number of bytes left in the file
+    mov   ebx, [ecx + fat_fdobject.bytes_left]
+    mov   ecx, [ebp + 16]
+    cmp   eax, ecx
+    cmovl ecx, eax
+    cmp   ebx, ecx
+    cmovl ecx, ebx
+
+    add   esi, edx
+    mov   edx, ecx   ; save ECX as movsb will zero it
+    rep   movsb
+    pop   esi
+    mov   ecx, edx   ; restore ECX back
+
+    mov   edx, [ebp + 8]
+    add   [edx + fat_fdobject.offset], ecx
+    sub   [edx + fat_fdobject.bytes_left], ecx
+    cmp   eax, ecx  ; check if we’re at the end of the cluster
+    je    .next_clust
+    add   [edx + fat_fdobject.clust_offset], ecx
+    jmp   .end
+
+    .next_clust
+    mov   si, [fat + 2*esi] ; take the next cluster
+    mov   [edx + fat_fdobject.current], si
+    mov   [edx + fat_fdobject.clust_offset], dword 0
+
     .end
-    pop  esi
-    pop  edi
-    pop  ebx
-    mov  esp, ebp
-    pop  ebp
+    mov   eax, ecx
+    add   esp, 4
+    pop   esi
+    pop   edi
+    pop   ebx
+    mov   esp, ebp
+    pop   ebp
     ret
 
 ;;; ssize_t fat_write(fat_fdobject* this, void* buf, size_t count)
