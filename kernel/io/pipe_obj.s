@@ -59,16 +59,17 @@ pipe_fds_new:
 	call pipe_obj_new
 	add esp, 4
 
-	mov ecx, [ebp + 8]
 	mov ebx, [esp + 4]
 	push ebx
 	call add_fd_object
 	add esp, 4
+	mov ecx, [ebp + 8]
 	mov [ecx], eax
 	mov ebx, [esp]
 	push ebx
 	call add_fd_object
 	add esp, 4
+	mov ecx, [ebp + 8]
 	mov [ecx + 4], eax
 
 	xor eax, eax
