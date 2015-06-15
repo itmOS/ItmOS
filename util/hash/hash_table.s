@@ -186,7 +186,7 @@ ht_remove:
 	jmp .loop
 	.end_loop:
 
-	xchg bx, bx
+	;xchg bx, bx
 
 	pop edx
 	pop esi

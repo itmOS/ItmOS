@@ -82,8 +82,8 @@ extern test_userspace
     retf ; Diving into our first user process!
 
 userspace:
-    lea eax, [4 * 1024 + userspace_end - userspace]
-    call eax
+    ;lea eax, [4 * 1024 + userspace_end - userspace]
+    ;call eax
     mov word [5 * 1024], 0
     mov eax, 6
     int 0x80
@@ -358,27 +358,33 @@ waitpid:
 
 global get_fd_object
 get_fd_object:
+    mov ecx, [esp + 4]
     mov eax, [kernel_loop]
-    mov eax, [kernel_loop + TSS.fdTable + 4 * edi]
+    mov eax, [tss_table + eax + TSS.fdTable + 4 * ecx]
     ret
 
 global add_fd_object
 add_fd_object:
-    mov esi, [kernel_loop]
-    lea esi, [tss_table + ecx + TSS.fdTable]
-    mov edx, esi
+    push edi
+    mov edi, [kernel_loop]
+    lea edi, [tss_table + edi + TSS.fdTable]
+    mov edx, edi
     mov ecx, MAX_FD
     xor eax, eax
-    repnz lodsd
+    repne scasd
     test ecx, ecx
     jz .failure
-    mov [esi], edi
-    mov eax, esi
+    sub edi, 4
+    mov ecx, [esp + 8]
+    mov [edi], ecx
+    mov eax, edi
     sub eax, edx
-    shl eax, 2
+    shr eax, 2
+    pop edi
     ret
 .failure:
     mov eax, -1
+    pop edi
     ret
 
 section .data
