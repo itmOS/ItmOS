@@ -1,5 +1,5 @@
 OUTPUT = tty.a
-OBJ = tty.o sprintf.o
+OBJ = tty.o sprintf.o tty_obj.o
 
 all: $(OUTPUT)
 
