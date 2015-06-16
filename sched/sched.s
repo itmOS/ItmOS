@@ -2,6 +2,8 @@
 %include "boot/boot.inc"
 %include "util/macro.inc"
 %include "tty/tty.inc"
+%include "fs/fs.inc"
+%include "dev/mem/sbrk.inc"
 
 extern new_page_table
 extern dup_page_table
@@ -67,7 +69,7 @@ sch_bootstrap:
     mov edi, 4 * 1024
     mov ecx, userspace_end - userspace
     rep movsb
-extern test_userspace
+    extern test_userspace
 	mov esi, test_userspace
 	lea edi, [4 * 1024 + userspace_end - userspace]
 	mov ecx, 1024
@@ -160,6 +162,89 @@ writeScreen:
     xor eax, eax
     ret
 .failure:
+    mov eax, -1
+    ret
+
+exec:
+    CCALL fat_open, edi, FAT_READ
+    cmp eax, -1
+    jne .good
+    ret
+.good:
+    mov ecx, eax
+    call new_page_table
+    cmp eax, -1
+    jne .excellent
+    CCALL fat_close, ecx
+    ret
+.excellent:
+    mov edx, eax
+    push ecx
+    push edx
+    xor ebx, ebx
+    mov edi, esi
+.countLengths:
+    cmp dword [edi], 0
+    je .enough
+    CCALL i_strlen, [edi]
+    add ebx, eax
+    inc ebx
+    add edi, 4
+    jmp .countLength
+.enough:
+    CCALL malloc, ebx
+    mov edi, eax
+    mov ebx, eax
+    mov edx, esi
+.copyIt:
+    mov esi, [edx]
+    test esi, esi
+    jz .copied
+    xor eax, eax
+    mov ecx, 0x7fffffff
+    repne movsb
+    add edx, 4
+    jmp .copyIt
+.copied:
+    ; currently using:
+    ; ebx - kernel buffer begin
+    ; edi - kernel buffer end
+    pop edx
+    mov ecx, [kernel_loop]
+    mov [tss_table + ecx + TSS.cr3], edx
+    mov ecx, cr3
+    push ecx
+    mov cr3, edx
+
+    lea ecx, [edi + 4 * 1024 * 1024 + 1]
+    sub ecx, ebx
+    SBRK ecx, USER_HEAP_BEGIN, USER_HEAP_END, USER_FLAG
+    mov esi, ebx
+    mov edi, 4 * 1024 * 1024
+    sub ecx, 4 * 1024 * 1024 + 1
+    rep movsb
+
+    mov ebx, [esp + 4]
+    mov edi, 4 * 1024
+.readIt:
+    CCALL dword [ebx + fd_obj.read], ebx, edi, 4 * 1024 * 1023
+    cmp eax, -1
+    je .ohGodWhyHere
+    test eax, eax
+    jz .fascinating
+    add edi, eax
+.fascinating:
+    CCALL free_page_table, [esp]
+    CCALL [ebx + fd_obj.close], ebx
+    add esp, 8
+    ret
+.ohGodWhyHere:
+    CCALL [ebx + fd_obj.close], ebx
+    mov ecx, cr3
+    pop edx
+    mov cr3, edx
+    CCALL free_page_table, ecx
+    add esp, 4
     mov eax, -1
     ret
 
