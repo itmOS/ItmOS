@@ -1,4 +1,17 @@
-#include "util/hash/hash_table.h"
+//#include "util/hash/hash_table.h"
+// Redeclaring hash_table and list methods to avoid cast warnings.
+
+typedef void hash_table;
+typedef void list;
+int list_head(list* l);
+list* list_tail(list* l);
+void list_free(list* l);
+void ht_free(hash_table* h);
+hash_table* ht_empty(void);
+void ht_add(hash_table* h, int a, int b);
+void ht_remove(hash_table* h, int a, int b);
+list* ht_get(hash_table* h, int a);
+
 #include "util/macro.h"
 #include "util/test/common.h"
 
