@@ -175,7 +175,8 @@ exec:
     call new_page_table
     cmp eax, -1
     jne .excellent
-    CCALL fat_close, ecx
+    CCALL [ecx + fd_object.close], ecx
+    mov eax, -1
     ret
 .excellent:
     mov edx, eax
@@ -206,9 +207,6 @@ exec:
     add edx, 4
     jmp .copyIt
 .copied:
-    ; currently using:
-    ; ebx - kernel buffer begin
-    ; edi - kernel buffer end
     pop edx
     mov ecx, [kernel_loop]
     mov [tss_table + ecx + TSS.cr3], edx
@@ -236,8 +234,14 @@ exec:
 .fascinating:
     CCALL free_page_table, [esp]
     CCALL [ebx + fd_obj.close], ebx
-    add esp, 8
-    ret
+    call syscall_finished
+    mov cx, USERSPACE_DATA
+    mov ds, cx
+    mov es, cx
+    mov gs, cx
+    mov ss, cx
+    mov fs, cx
+    jmp USERSPACE_CODE:(4 * 1024)
 .ohGodWhyHere:
     CCALL [ebx + fd_obj.close], ebx
     mov ecx, cr3
