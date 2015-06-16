@@ -273,10 +273,7 @@ syscall_finished:
 
 context_switch:
     mov esi, 1
-    cmp byte [halted], 0
-    je .start
-    NOTIFYPIC
-    ret
+    jmp .start
 .systemFunction:
     xor esi, esi
 .start:
@@ -318,7 +315,6 @@ context_switch:
 .return:
     ret
 .halt:
-    mov byte [halted], 1
     test esi, esi
     jz .finish
     NOTIFYPIC
@@ -328,7 +324,6 @@ context_switch:
     hlt
     cli
     ENABLE_MASTER_BIT 0x01
-    mov byte [halted], 0
     jmp .systemFunction
 
 global waitpid
@@ -379,7 +374,6 @@ section .data
 proc_count   dd TSS_size * 2
 cur_process  dd TSS_size
 kernel_loop  dd TSS_size
-halted       dd 0
 
 section .rodata
 
