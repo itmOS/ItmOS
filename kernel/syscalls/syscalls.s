@@ -9,7 +9,7 @@ global init_syscalls
 init_syscalls:
 	ADD_SYSTEM_FUNCTION 3, read_syscall
 	ADD_SYSTEM_FUNCTION 4, write_syscall
-	;; ADD_SYSTEM_FUNCTION 6, close_syscall
+	ADD_SYSTEM_FUNCTION 7, close_syscall
 	ADD_SYSTEM_FUNCTION 42, pipe_syscall
 	ret
 
