@@ -239,25 +239,28 @@ exec:
     mov ebx, [esp + 4]
     mov edi, 4 * 1024
 .readIt:
-    push edi
     CCALL dword [ebx + fd_obj.read], ebx, edi, 4 * 1024 * 1023
-    pop edi
     cmp eax, -1
     je .ohGodWhyHere
     test eax, eax
     jz .fascinating
     add edi, eax
 .fascinating:
-    CCALL free_page_table, [esp]
+    ;CCALL free_page_table, [esp]
     CCALL [ebx + fd_obj.close], ebx
     call syscall_finished
+    push USERSPACE_DATA
+    push 4 * 1024 * 1024 - 4
+    push USERSPACE_CODE
+    push 4 * 1024
+    xchg bx, bx
     mov cx, USERSPACE_DATA
     mov ds, cx
     mov es, cx
     mov gs, cx
-    mov ss, cx
     mov fs, cx
-    jmp USERSPACE_CODE:(4 * 1024)
+    cli
+    retf
 .ohGodWhyHere:
     CCALL [ebx + fd_obj.close], ebx
     mov ecx, cr3

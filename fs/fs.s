@@ -366,7 +366,7 @@ fat_read:
 
     .end
     mov   eax, ecx
-    add   esp, 4
+    ;add   esp, 4
     pop   esi
     pop   edi
     pop   ebx
