@@ -65,7 +65,7 @@ keyboard_int:
         add esp, 4
         test al, al
         jz .exit
-        
+
         mov dword ecx, 8
         cmp al, cl
         je .backspace

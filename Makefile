@@ -32,7 +32,7 @@ ISO_ROOT ?= isoroot
 ISO ?= kernel.iso
 OUTPUT_DIR ?= $(ISO_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
-SUBMODULES ?= boot kernel tty ata interrupts util dev sched multiboot libc
+SUBMODULES ?= boot kernel tty ata interrupts fs util dev sched multiboot libc
 GRUB_CONF ?= res/grub.cfg
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
@@ -55,6 +55,12 @@ $(ISO): $(KERNEL)
 $(HARD): $(KERNEL)
 	dd if=/dev/zero of=$(HARD) count=40320
 	$(PARTED) $(HARD) $(PARTEDFLAGS)
+	echo "Hello world!" > HELLO.TXT
+	mkfs.fat -F 16 $(HARD)
+	mcopy -i $(HARD) HELLO.TXT ::
+	#mcopy -i $(HARD) LIPSUM.TXT ::
+	mcopy -i $(HARD) ../itmosh/echo.bin ::
+	rm -f HELLO.TXT
 
 $(KERNEL): $(OBJ)
 	-mkdir -p $(OUTPUT_DIR)

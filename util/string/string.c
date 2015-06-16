@@ -16,6 +16,14 @@ void i_memset(void *ptr, int value, int num) {
         *char_ptr++ = (unsigned char) value;
 }
 
+int i_memcmp(const char *fst, const char *snd, unsigned n) {
+    for (unsigned i = 0; i < n; i++) {
+        if (fst[i] != snd[i])
+            return fst[i] - snd[i];
+    }
+    return 0;
+}
+
 int i_strlen(const char* s)
 {
   int res = 0;

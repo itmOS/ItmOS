@@ -17,6 +17,7 @@ extern kbd_register_tests
 extern pipe_register_tests
 extern pipe_obj_register_tests
 extern hash_register_tests
+extern fs_register_tests
 extern mem_register_tests
 
 extern init_mem_manager
@@ -48,6 +49,7 @@ kernel_main:
 	call pipe_register_tests
 	call pipe_obj_register_tests
 	call hash_register_tests
+	call fs_register_tests
 	ATA_IDENTIFY
 
 	call init_syscalls

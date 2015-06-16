@@ -4,9 +4,14 @@
 %include "tty/tty.inc"
 %include "fs/fs.inc"
 %include "dev/mem/sbrk.inc"
+%include "kernel/io/io.inc"
 
 extern new_page_table
 extern dup_page_table
+extern free_page_table
+extern malloc
+
+extern i_strlen
 
 section .text
 
@@ -77,6 +82,7 @@ sch_bootstrap:
     ADD_SYSTEM_FUNCTION 0, exit
     ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
+    ADD_SYSTEM_FUNCTION 7, exec
     ADD_SYSTEM_FUNCTION 9, waitpid
     mov esp, [tss_table + TSS_size + TSS.esp]
     INITHANDLER context_switch, IRQ_BASE, 0x8E00
@@ -130,18 +136,26 @@ userspace:
     cmp ecx, 100000000
     jl .loop
     mov esi, chlString - userspace + 4 * 1024
-.exit:
     mov eax, 2
     mov edi, 2
     int 0x80
     xor eax, eax
     mov edi, 123
     int 0x80
+.exit:
+    xchg bx, bx
+    mov [execArgs - userspace + 4 * 1024], esi
+    mov edi, echoFilename - userspace + 4 * 1024
+    mov esi, execArgs - userspace + 4 * 1024
+    mov eax, 7
+    int 0x80
 
 parentWut: db 'parent: failed to wait for child, wtf', 10, 0
 parString: db 'parent: waited for child, finished', 10, 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
+echoFilename: db 'ECHO   BIN', 0
+execArgs: db 0, 0
   userspace_end
 
 exit:
@@ -166,16 +180,18 @@ writeScreen:
     ret
 
 exec:
-    CCALL fat_open, edi, FAT_READ
+    xchg bx, bx
+    CCALL fat_open, edi, 0
     cmp eax, -1
     jne .good
     ret
 .good:
-    mov ecx, eax
+    mov edi, eax
     call new_page_table
+    mov ecx, edi
     cmp eax, -1
     jne .excellent
-    CCALL [ecx + fd_object.close], ecx
+    CCALL [ecx + fd_obj.close], ecx
     mov eax, -1
     ret
 .excellent:
@@ -191,7 +207,7 @@ exec:
     add ebx, eax
     inc ebx
     add edi, 4
-    jmp .countLength
+    jmp .countLengths
 .enough:
     CCALL malloc, ebx
     mov edi, eax
