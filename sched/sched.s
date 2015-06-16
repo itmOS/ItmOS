@@ -154,7 +154,7 @@ parentWut: db 'parent: failed to wait for child, wtf', 10, 0
 parString: db 'parent: waited for child, finished', 10, 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
-echoFilename: db 'ECHO   BIN', 0
+echoFilename: db 'ECHO    BIN', 0
 execArgs: db 0, 0
   userspace_end
 
@@ -182,7 +182,7 @@ writeScreen:
 exec:
     xchg bx, bx
     CCALL fat_open, edi, 0
-    cmp eax, -1
+    test eax, eax
     jne .good
     ret
 .good:
