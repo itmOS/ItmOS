@@ -1,6 +1,7 @@
 global ata_rd_segs
 global ata_wr_segs
 global ata_identify
+global ata_is_ready
 
 %include "tty/tty.inc"
 %include "util/macro.inc"
@@ -76,6 +77,8 @@ global ata_identify
 section .text
 
 ata_identify:
+	mov [ata_ready], dword 1 ; some bss data initialization
+
 	mov al, ATA_CHS_MASTER
 	mov dx, ATA_PIO_BASE_ADDR
 	or dx, ATA_PIO_PORT_DRV_HEAD
@@ -458,6 +461,11 @@ ata_poll:
 	pop ecx
 	pop edx
 	ret
+
+;;; Checks if sector is ready (was read or written).
+ata_is_ready:
+	mov eax, [ata_ready]
+	ret	
 
 ;;; Simple read interrupt. Called on disk interrupt
 ata_read_interrupt:

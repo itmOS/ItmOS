@@ -4,6 +4,7 @@
 extern ata_rd_segs
 extern ata_wr_segs
 extern ata_identify
+extern ata_is_ready
 
 ;;; void ATA_IDENTIFY()
 ;;; Fetchs disk's information, that will be used later.
@@ -27,6 +28,10 @@ extern ata_identify
 	pop ebx
 	pop edi
 	pop ebp
+.ata_inseg_loop
+	call ata_is_ready
+	cmp eax, 0
+	je .ata_inseg_loop
 %endmacro
 
 ;;; void ATA_OUTSEG(uint32 sector_number, uint32 number_of_sectors, char* source)
@@ -44,6 +49,10 @@ extern ata_identify
 	pop ebx
 	pop esi
 	pop ebp
+.ata_inseg_loop
+	call ata_is_ready
+	cmp eax, 0
+	je .ata_inseg_loop
 %endmacro
 
 %endif
