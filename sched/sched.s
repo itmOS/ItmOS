@@ -12,6 +12,7 @@ extern free_page_table
 extern malloc
 
 extern i_strlen
+extern i_strcpy
 
 section .text
 
@@ -155,7 +156,7 @@ parString: db 'parent: waited for child, finished', 10, 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
 echoFilename: db 'ECHO    BIN', 0
-execArgs: db 0, 0
+execArgs: dd 0, 0
   userspace_end
 
 exit:
@@ -180,7 +181,6 @@ writeScreen:
     ret
 
 exec:
-    xchg bx, bx
     CCALL fat_open, edi, 0
     test eax, eax
     jne .good
@@ -212,15 +212,14 @@ exec:
     CCALL malloc, ebx
     mov edi, eax
     mov ebx, eax
-    mov edx, esi
 .copyIt:
-    mov esi, [edx]
-    test esi, esi
-    jz .copied
+    cmp dword [esi], 0
+    je .copied
+    CCALL i_strcpy, edi, [esi]
     xor eax, eax
     mov ecx, 0x7fffffff
-    repne movsb
-    add edx, 4
+    repne scasb
+    add esi, 4
     jmp .copyIt
 .copied:
     pop edx
@@ -232,6 +231,7 @@ exec:
 
     lea ecx, [edi + 4 * 1024 * 1024 + 1]
     sub ecx, ebx
+    xchg bx, bx
     SBRK ecx, USER_HEAP_BEGIN, USER_HEAP_END, USER_FLAG
     mov esi, ebx
     mov edi, 4 * 1024 * 1024
