@@ -459,6 +459,33 @@ ata_poll:
 	pop edx
 	ret
 
+;;; Simple read interrupt. Called on disk interrupt
+ata_read_interrupt:
+	mov dx, ATA_PIO_BASE_ADDR   ; data is on 0x1f0
+	mov edi, ata_sector_buffer
+	mov ecx, 256
+	cld
+	rep insw
+	mov [ata_ready], dword 1
+	ret
+	
+;;; Simple write interrupt. Called on disk interrupt
+ata_write_interrupt:
+	mov dx, ATA_PIO_BASE_ADDR   ; data is on 0x1f0
+	mov edi, ata_sector_buffer
+	mov ecx, 256
+	cld
+.loop
+	outsw
+	xor eax, eax   ; small delay (we don't want to output too fast)
+	loop .loop
+	mov [ata_ready], dword 1
+	ret
+
+section .bss
+ata_ready:         resd 1
+ata_sector_buffer: resw 256
+
 section .data
 ata_identify_data: times 256 dw 0
 
