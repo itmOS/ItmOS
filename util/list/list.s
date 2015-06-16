@@ -1,4 +1,5 @@
 %include 'util/list/struct.inc'
+%include 'stdlib.inc'
 
 global list_single
 ;; list* list_single(void* e)
@@ -35,7 +36,24 @@ list_tail:
 ;; void list_free(list* l)
 global list_free
 list_free:
-	;; TODO: Ignoring fow now
+	mov eax, [esp + 4]
+	push ebx
+
+.loop:
+	test eax, eax
+	je .end_loop
+
+	mov ebx, [eax + list.next]
+
+	push eax
+	call free
+	add esp, 4
+
+	mov eax, ebx
+	jmp .loop
+
+.end_loop:
+	pop ebx
 	ret
 
 ;; list* list_push(list* l, void* e)
@@ -57,26 +75,27 @@ message: db 'HERE: %d',10, 0
 ;; list* list_pop(list* l)
 global list_pop
 list_pop:
-	mov eax, [esp + 4]
-	mov eax, [eax + list.next]
+	push ebx
 
-	;; TODO: Free when adding dynamic memory
+	mov eax, [esp + 8]
+	mov ebx, [eax + list.next]
+
+	push eax
+	call free
+	add esp, 4
+
+	mov eax, ebx
+
+	pop ebx
 	ret
 
 ;; list* get_node()
 ;; Allocates the new node
 get_node:
-	inc dword [ptr]
-	cmp dword [ptr], MAX_SIZE
-	jb .not_overflow
-	mov dword [ptr], 0
-	.not_overflow:
-	mov eax, [ptr]
-	lea eax, [eax * list_size + storage]
-	ret
+	mov eax, list_size
+	push eax
 
-section .data
-MAX_SIZE: equ 4096
-;; TODO: Remove when will add the dynamic memory
-storage: resb MAX_SIZE * list_size
-ptr: dd 0
+	call malloc
+
+	add esp, 4
+	ret

@@ -7,14 +7,18 @@ section .text
 %include "util/test/test.inc"
 %include "interrupts/interrupts.inc"
 %include "multiboot/multiboot.inc"
+%include "kernel/syscalls/syscalls.inc"
 
 global kernel_main
 extern ata_register_tests
 extern string_register_tests
 extern list_register_tests
 extern kbd_register_tests
-
+extern pipe_register_tests
+extern pipe_obj_register_tests
+extern hash_register_tests
 extern mem_register_tests
+
 extern init_mem_manager
 extern mmap_print
 extern init_kernel_page_table
@@ -39,20 +43,24 @@ kernel_main:
 	call ata_register_tests
 	call string_register_tests
 	call list_register_tests
-    call mem_register_tests
+	call mem_register_tests
 	call kbd_register_tests
-	
+	call pipe_register_tests
+	call pipe_obj_register_tests
+	call hash_register_tests
 	ATA_IDENTIFY
 
+	call init_syscalls
 	TEST_RUN_ALL
 	push dword -80
 	push dword 70
 	push sprintf_test
 	CCALL tty_printf, sprintf_test, dword 70, dword -80
-    add eax, 12
-    TTY_PUTS processes
-    extern sch_bootstrap
-    jmp sch_bootstrap
+	add eax, 12
+	TTY_PUTS processes
+
+	extern sch_bootstrap
+	jmp sch_bootstrap
 
 logging_prelude:
 	LOG_SIMPLE prelude

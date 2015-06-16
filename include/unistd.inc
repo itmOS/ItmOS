@@ -8,4 +8,6 @@ extern write
 ;;; int close(int fd)
 extern close
 
+extern pipe
+
 %endif

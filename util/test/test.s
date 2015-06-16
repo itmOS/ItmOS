@@ -2,6 +2,7 @@
 
 %include "util/log/log.inc"
 %include "util/test/test_t.inc"
+%include "util/macro.inc"
 
 global test_register_single
 global test_run_all
@@ -11,7 +12,7 @@ section .text
 ;;; void test_register_single(char* name,
 ;;;                           int (test_body*)(void));
 ;;; Register the single test (e.g. without a group).
-test_register_single:	
+test_register_single:
 	push ebp
 	mov ebp, esp
 	push ebx
@@ -32,16 +33,21 @@ test_register_single:
 
 ;;; void test_run_all(void);
 ;;; Run all registered tests.
-;;; FIXME: Better output when the printf will be fixed
-test_run_all:	
+test_run_all:
+	push ebp
+	mov ebp, esp
+	push dword 0
+
 	push ecx
 	push esi
 	push edi
 	push edx
 
-	xor edx, edx		; how many tests failed
 	push ecx
+	TTY_SAVE_STYLE
+	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_BLUE)
 	LOG_SIMPLE starting_tests
+	TTY_RESTORE_STYLE
 	pop ecx
 
 	xor ecx, ecx
@@ -68,7 +74,7 @@ test_run_all:
 	add esp, 4
 	pop edi
 	pop ecx
-	inc edx
+	inc dword [ebp - 4]
 	jmp .continue
 
 	.test_passed
@@ -89,22 +95,40 @@ test_run_all:
 	cmp ecx, [single_tests_count]
 	jl .loop
 
-	;; TODO: Print how many tests failed
-	LOG_SIMPLE tests_finished
+	mov edx, [ebp - 4]
+	TTY_SAVE_STYLE
+	test edx, edx
+	jne .failed
+	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_GREEN)
+	TTY_PUTS all_tests_passed
+	jmp .exit
+	.failed:
+	TTY_SET_STYLE TTY_STYLE(TTY_BLACK, TTY_RED)
+	push edx
+	push some_tests_failed
+	call tty_printf
+	add esp, 8
+
+	.exit:
+	TTY_RESTORE_STYLE
 
 	pop edx
 	pop edi
 	pop esi
 	pop ecx
+
+	add esp, 4
+	pop ebp
 	ret
 
 section .data
 single_tests_count: dd 0
 starting_tests: db '===== Running tests =====', 0
-tests_finished: db '===== Tests finished =====', 0
+some_tests_failed: db '===== %u tests failed ====', 10, 0
+all_tests_passed: db '===== All tests passed =====', 10, 0
 test_passed: db '[PASSED] %s', 10, 0
 test_failed: db '[FAILED] %s', 10, 0
 
 section .bss
-;;; FIXME: Make the size infinite when adding dynamic memory
+;;; FIXME: Increase the size in future, or make it dynamic
 single_tests: resb 1024 * test_t.sizeof

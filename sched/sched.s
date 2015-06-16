@@ -54,7 +54,7 @@ sch_bootstrap:
     mov word [tss_table + TSS_size + TSS.ss0], PRIVILEGED_DATA
     call new_page_table
     mov [tss_table + TSS_size + TSS.cr3], eax
-    mov dword [tss_table + TSS_size + TSS.stackTop - 4], USERSPACE_DATA
+    mov dword [tss_table + TSS_size + TSS.stackTop - 4],   USERSPACE_DATA
     mov dword [tss_table + TSS_size + TSS.stackTop - 8], 5 * 1024 - 4
     mov dword [tss_table + TSS_size + TSS.stackTop - 12], USERSPACE_CODE
     mov dword [tss_table + TSS_size + TSS.stackTop - 16], 4 * 1024
@@ -67,6 +67,11 @@ sch_bootstrap:
     mov edi, 4 * 1024
     mov ecx, userspace_end - userspace
     rep movsb
+extern test_userspace
+	mov esi, test_userspace
+	lea edi, [4 * 1024 + userspace_end - userspace]
+	mov ecx, 1024
+    rep movsb
     ADD_SYSTEM_FUNCTION 0, exit
     ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
@@ -77,6 +82,8 @@ sch_bootstrap:
     retf ; Diving into our first user process!
 
 userspace:
+    lea eax, [4 * 1024 + userspace_end - userspace]
+    call eax
     mov word [5 * 1024], 0
     mov eax, 6
     int 0x80
@@ -133,7 +140,7 @@ parentWut: db 'parent: failed to wait for child, wtf', 10, 0
 parString: db 'parent: waited for child, finished', 10, 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
-userspace_end
+  userspace_end
 
 exit:
     mov eax, [kernel_loop]
@@ -346,27 +353,34 @@ waitpid:
 
 global get_fd_object
 get_fd_object:
+    mov ecx, [esp + 4]
     mov eax, [kernel_loop]
-    mov eax, [kernel_loop + TSS.fdTable + 4 * edi]
+    mov eax, [tss_table + eax + TSS.fdTable + 4 * ecx]
     ret
 
 global add_fd_object
 add_fd_object:
-    mov esi, [kernel_loop]
-    lea esi, [tss_table + ecx + TSS.fdTable]
-    mov edx, esi
+    push edi
+    mov edi, [kernel_loop]
+    lea edi, [tss_table + edi + TSS.fdTable]
+    mov edx, edi
     mov ecx, MAX_FD
     xor eax, eax
-    repnz lodsd
+    cld
+    repne scasd
     test ecx, ecx
     jz .failure
-    mov [esi], edi
-    mov eax, esi
+    sub edi, 4
+    mov ecx, [esp + 8]
+    mov [edi], ecx
+    mov eax, edi
     sub eax, edx
-    shl eax, 2
+    shr eax, 2
+    pop edi
     ret
 .failure:
     mov eax, -1
+    pop edi
     ret
 
 section .data

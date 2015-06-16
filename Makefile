@@ -2,10 +2,11 @@
 
 export CC ?= gcc
 export CFLAGS = $(EXTRA_CFLAGS) -m32 -Wall -Wextra -std=c99 -ffreestanding \
-	-I$(shell pwd)
+	-nostdinc -I$(shell pwd) -I$(shell pwd)/include
 
 export AS = yasm
-export ASFLAGS = $(EXTRA_ASFLAGS) -f elf32 -I $(shell pwd)
+export ASFLAGS = $(EXTRA_ASFLAGS) -f elf32 -I $(shell pwd)\
+-I $(shell pwd)/include
 
 export LD = ld
 export LDFLAGS = -m elf_i386 -T res/linker.ld
@@ -31,7 +32,7 @@ ISO_ROOT ?= isoroot
 ISO ?= kernel.iso
 OUTPUT_DIR ?= $(ISO_ROOT)/boot
 KERNEL ?= $(OUTPUT_DIR)/ItmOS
-SUBMODULES ?= boot kernel tty ata interrupts util dev sched multiboot
+SUBMODULES ?= boot kernel tty ata interrupts util dev sched multiboot libc
 GRUB_CONF ?= res/grub.cfg
 
 OBJ = $(foreach DIR, $(SUBMODULES), $(DIR)/$(DIR).a)
