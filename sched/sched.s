@@ -144,7 +144,6 @@ userspace:
     mov edi, 123
     int 0x80
 .exit:
-    xchg bx, bx
     mov [execArgs - userspace + 4 * 1024], esi
     mov edi, echoFilename - userspace + 4 * 1024
     mov esi, execArgs - userspace + 4 * 1024
@@ -229,19 +228,20 @@ exec:
     push ecx
     mov cr3, edx
 
-    lea ecx, [edi + 4 * 1024 * 1024 + 1]
-    sub ecx, ebx
-    xchg bx, bx
-    SBRK ecx, USER_HEAP_BEGIN, USER_HEAP_END, USER_FLAG
     mov esi, ebx
+    neg ebx
+    lea ebx, [ebx + edi + 4 * 1024 * 1024 + 1]
+    call sbrk
     mov edi, 4 * 1024 * 1024
-    sub ecx, 4 * 1024 * 1024 + 1
+    lea ecx, [ebx - 4 * 1024 * 1024 - 1]
     rep movsb
 
     mov ebx, [esp + 4]
     mov edi, 4 * 1024
 .readIt:
+    push edi
     CCALL dword [ebx + fd_obj.read], ebx, edi, 4 * 1024 * 1023
+    pop edi
     cmp eax, -1
     je .ohGodWhyHere
     test eax, eax
@@ -267,6 +267,9 @@ exec:
     add esp, 4
     mov eax, -1
     ret
+
+sbrk:
+    SBRK ebx, USER_HEAP_BEGIN, USER_HEAP_END, USER_FLAG
 
 fork:
     CCALL dup_page_table, cr3
