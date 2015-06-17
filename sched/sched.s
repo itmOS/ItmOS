@@ -144,8 +144,8 @@ userspace:
     mov edi, 123
     int 0x80
 .exit:
-    mov [execArgs - userspace + 4 * 1024 + 4], esi
-    mov [execArgs - userspace + 4 * 1024 + 8], dword parStringC
+    ;mov [execArgs - userspace + 4 * 1024 + 4], esi
+    ;mov [execArgs - userspace + 4 * 1024 + 8], dword parStringC
     mov edi, echoFilename - userspace + 4 * 1024
     mov esi, execArgs - userspace + 4 * 1024
     mov eax, 7
@@ -156,7 +156,7 @@ parString: db 'parent: waited for', 0
 parStringC: db 'child, finished', 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
-echoFilename: db 'ECHO    BIN', 0
+echoFilename: db 'ITMOSH  BIN', 0
 execArgs: dd echoFilename - userspace + 4 * 1024, 0, 0, 0
   userspace_end
 
@@ -248,7 +248,7 @@ exec:
     jz .fascinating
     add edi, eax
 .fascinating:
-    ;CCALL free_page_table, [esp]
+    call free_page_table
     CCALL [ebx + fd_obj.close], ebx
     call syscall_finished
     push USERSPACE_DATA

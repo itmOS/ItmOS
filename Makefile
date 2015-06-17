@@ -59,7 +59,7 @@ $(HARD): $(KERNEL)
 	mkfs.fat -F 16 $(HARD)
 	mcopy -i $(HARD) HELLO.TXT ::
 	#mcopy -i $(HARD) LIPSUM.TXT ::
-	mcopy -i $(HARD) ../itmosh/echo.bin ::
+	mcopy -i $(HARD) ../itmosh/itmosh.bin ::
 	rm -f HELLO.TXT
 
 $(KERNEL): $(OBJ)
