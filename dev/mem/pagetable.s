@@ -217,10 +217,7 @@ free_page_table:
         mov dword eax, [esp + 4]
         SAFE_WINDOW eax
         pusha
-        push eax
-        mov eax, [WINDOW + 4 * 767]
-        pop eax
-        ;; Save pointers to new page table and given page table
+        ;; Save pointer to given page table
         mov edi, eax
         ;; Free only first 3 GB(last 1 GB is kernel)
         mov dword ecx, 768
@@ -235,7 +232,7 @@ free_page_table:
         test eax, eax
         jz .loop
 
-        ;; Than we need to free second level pages in eax from ebx
+        ;; Than we need to free second level pages in eax from edx
         mov dword eax, [WINDOW + 4 * ecx]
         ;; Map second level page tables
         SAFE_WINDOW2 eax
@@ -253,30 +250,30 @@ free_page_table:
         ;; Free physical pages in second level
         mov dword ebx, [WINDOW2 + 4 * edx]
         and dword ebx, ~0xFFF
-        push ebx
+        push eax
         push ecx
         CCALL put_pages, ebx, dword 1
         pop ecx
-        pop ebx
+        pop eax
 
         jmp .loop2
 .finishloop:
         ;; Free second level page table 
-        push ebx
+        push eax
         push ecx
         CCALL put_pages, eax, dword 1
 
         pop ecx
-        pop ebx
+        pop eax
 
         jmp .loop
 .exit:
         ;; Free first level page table 
-        push ebx
+        push eax
         push ecx
         CCALL put_pages, edi, dword 1
         pop ecx
-        pop ebx
+        pop eax
         popa
         ret
 
