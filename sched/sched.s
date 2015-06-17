@@ -2,9 +2,17 @@
 %include "boot/boot.inc"
 %include "util/macro.inc"
 %include "tty/tty.inc"
+%include "fs/fs.inc"
+%include "dev/mem/sbrk.inc"
+%include "kernel/io/io.inc"
 
 extern new_page_table
 extern dup_page_table
+extern free_page_table
+extern malloc
+
+extern i_strlen
+extern i_strcpy
 
 section .text
 
@@ -67,7 +75,7 @@ sch_bootstrap:
     mov edi, 4 * 1024
     mov ecx, userspace_end - userspace
     rep movsb
-extern test_userspace
+    extern test_userspace
 	mov esi, test_userspace
 	lea edi, [4 * 1024 + userspace_end - userspace]
 	mov ecx, 1024
@@ -75,6 +83,7 @@ extern test_userspace
     ADD_SYSTEM_FUNCTION 0, exit
     ADD_SYSTEM_FUNCTION 2, writeScreen
     ADD_SYSTEM_FUNCTION 6, fork
+    ADD_SYSTEM_FUNCTION 7, exec
     ADD_SYSTEM_FUNCTION 9, waitpid
     mov esp, [tss_table + TSS_size + TSS.esp]
     INITHANDLER context_switch, IRQ_BASE, 0x8E00
@@ -128,18 +137,27 @@ userspace:
     cmp ecx, 100000000
     jl .loop
     mov esi, chlString - userspace + 4 * 1024
-.exit:
     mov eax, 2
     mov edi, 2
     int 0x80
     xor eax, eax
     mov edi, 123
     int 0x80
+.exit:
+    mov [execArgs - userspace + 4 * 1024 + 4], esi
+    mov [execArgs - userspace + 4 * 1024 + 8], dword parStringC
+    mov edi, echoFilename - userspace + 4 * 1024
+    mov esi, execArgs - userspace + 4 * 1024
+    mov eax, 7
+    int 0x80
 
 parentWut: db 'parent: failed to wait for child, wtf', 10, 0
-parString: db 'parent: waited for child, finished', 10, 0
+parString: db 'parent: waited for', 0
+parStringC: db 'child, finished', 0
 chlString: db 'child: exited', 10, 0
 chlBusy:   db 'child: performing a complex computation', 10, 0
+echoFilename: db 'ECHO    BIN', 0
+execArgs: dd echoFilename - userspace + 4 * 1024, 0, 0, 0
   userspace_end
 
 exit:
@@ -162,6 +180,101 @@ writeScreen:
 .failure:
     mov eax, -1
     ret
+
+exec:
+    CCALL fat_open, edi, 0
+    test eax, eax
+    jne .good
+    ret
+.good:
+    mov edi, eax
+    call new_page_table
+    mov ecx, edi
+    cmp eax, -1
+    jne .excellent
+    CCALL [ecx + fd_obj.close], ecx
+    mov eax, -1
+    ret
+.excellent:
+    mov edx, eax
+    push ecx
+    push edx
+    xor ebx, ebx
+    mov edi, esi
+.countLengths:
+    cmp dword [edi], 0
+    je .enough
+    CCALL i_strlen, [edi]
+    add ebx, eax
+    inc ebx
+    add edi, 4
+    jmp .countLengths
+.enough:
+    CCALL malloc, ebx
+    mov edi, eax
+    mov ebx, eax
+.copyIt:
+    cmp dword [esi], 0
+    je .copied
+    CCALL i_strcpy, edi, [esi]
+    xor eax, eax
+    mov ecx, 0x7fffffff
+    repne scasb
+    add esi, 4
+    jmp .copyIt
+.copied:
+    pop edx
+    mov ecx, [kernel_loop]
+    mov [tss_table + ecx + TSS.cr3], edx
+    mov ecx, cr3
+    push ecx
+    mov cr3, edx
+
+    mov esi, ebx
+    neg ebx
+    lea ebx, [ebx + edi + 4 * 1024 * 1024 + 1]
+    call sbrk
+    mov edi, 4 * 1024 * 1024
+    lea ecx, [ebx - 4 * 1024 * 1024 - 1]
+    rep movsb
+
+    mov ebx, [esp + 4]
+    mov edi, 4 * 1024
+.readIt:
+    CCALL dword [ebx + fd_obj.read], ebx, edi, 4 * 1024 * 1023
+    cmp eax, -1
+    je .ohGodWhyHere
+    test eax, eax
+    jz .fascinating
+    add edi, eax
+.fascinating:
+    ;CCALL free_page_table, [esp]
+    CCALL [ebx + fd_obj.close], ebx
+    call syscall_finished
+    push USERSPACE_DATA
+    push 4 * 1024 * 1024 - 4
+    push USERSPACE_CODE
+    push 4 * 1024
+    mov cx, USERSPACE_DATA
+    mov ds, cx
+    mov es, cx
+    mov gs, cx
+    mov fs, cx
+    cli
+    xchg bx, bx
+    retf
+.ohGodWhyHere:
+    CCALL [ebx + fd_obj.close], ebx
+    mov ecx, cr3
+    pop edx
+    mov cr3, edx
+    CCALL free_page_table, ecx
+    add esp, 4
+    mov eax, -1
+    ret
+
+sbrk:
+    SBRK ebx, USER_HEAP_BEGIN, USER_HEAP_END, USER_FLAG
 
 fork:
     CCALL dup_page_table, cr3
@@ -280,10 +393,7 @@ syscall_finished:
 
 context_switch:
     mov esi, 1
-    cmp byte [halted], 0
-    je .start
-    NOTIFYPIC
-    ret
+    jmp .start
 .systemFunction:
     xor esi, esi
 .start:
@@ -325,7 +435,6 @@ context_switch:
 .return:
     ret
 .halt:
-    mov byte [halted], 1
     test esi, esi
     jz .finish
     NOTIFYPIC
@@ -335,7 +444,6 @@ context_switch:
     hlt
     cli
     ENABLE_MASTER_BIT 0x01
-    mov byte [halted], 0
     jmp .systemFunction
 
 global waitpid
@@ -393,7 +501,6 @@ section .data
 proc_count   dd TSS_size * 2
 cur_process  dd TSS_size
 kernel_loop  dd TSS_size
-halted       dd 0
 
 section .rodata
 

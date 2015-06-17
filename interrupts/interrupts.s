@@ -65,7 +65,7 @@ keyboard_int:
         add esp, 4
         test al, al
         jz .exit
-        
+
         mov dword ecx, 8
         cmp al, cl
         je .backspace
@@ -121,12 +121,8 @@ system_interrupt:
     restoreOrigDescriptors
     iret
 
-HEAP_BEGIN      equ 0x400000
-HEAP_END        equ 0xbffff000
-FLAG            equ 0x7
-
 user_sbrk:
-        SBRK edi, HEAP_BEGIN, HEAP_END, FLAG
+        SBRK edi, USER_HEAP_BEGIN, USER_HEAP_END, USER_FLAG
 
 init_interrupts:
         push eax

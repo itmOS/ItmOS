@@ -6,6 +6,10 @@
 %include "dev/mem/virtmem.inc"
 %include "dev/mem/phymem.inc"
 
+USER_HEAP_BEGIN equ 0x400000
+USER_HEAP_END   equ 0xbffff000
+USER_FLAG       equ 0x7
+
 %macro SBRK 4
         push edi
         push esi

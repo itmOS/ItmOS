@@ -110,7 +110,7 @@ malloc:
 ;;; void free(void* addr)
 ;;; frees memory chunk starting from addr
 free:
-
+        ret
         mov dword eax, [esp + 4]
         pusha
         mov ecx, eax                    ; get left bound of block to add

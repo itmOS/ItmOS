@@ -1,7 +1,7 @@
 %ifndef ATA_INC
 %define ATA_INC
 
-;%include "sched.inc"
+%include "sched/sched.inc"
 
 extern ata_rd_segs
 extern ata_wr_segs
@@ -30,12 +30,12 @@ extern ata_is_ready
 	pop ebx
 	pop edi
 	pop ebp
-.ata_inseg_loop
+%%ata_inseg_loop
 	call ata_is_ready
 	cmp eax, 1
-	je .ata_inseg_ready
-	call suspend_call
-.ata_inseg_ready
+	je %%ata_inseg_ready
+	call suspend_syscall
+%%ata_inseg_ready
 %endmacro
 
 ;;; void ATA_OUTSEG(uint32 sector_number, uint32 number_of_sectors, char* source)
