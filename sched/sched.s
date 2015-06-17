@@ -253,13 +253,13 @@ exec:
     push 4 * 1024 * 1024 - 4
     push USERSPACE_CODE
     push 4 * 1024
-    xchg bx, bx
     mov cx, USERSPACE_DATA
     mov ds, cx
     mov es, cx
     mov gs, cx
     mov fs, cx
     cli
+    xchg bx, bx
     retf
 .ohGodWhyHere:
     CCALL [ebx + fd_obj.close], ebx
