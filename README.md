@@ -39,3 +39,8 @@ and set the variable there:
 GRUB_MKRESCUE = grub2-mkrescue
 ```
 Above is true for many other variables, for example "EMUL", "SUBMODULES", "OUTPUT_DIR" etc.
+
+FAQ
+---
+Q: I have "xorriso : FAILURE : Cannot find path '/efi.img' in loaded ISO image" message when trying to run "make run"
+A: Probably you have ArchLinux and it have some strange problems with it. Create file "Makefile.local" and add "GRUB_MKRESCUE = grub-mkrescue -d /usr/lib/grub/i386-pc" line to it.
