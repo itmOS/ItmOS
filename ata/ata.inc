@@ -35,6 +35,7 @@ extern ata_is_ready
 	cmp eax, 1
 	je %%ata_inseg_ready
 	call suspend_syscall
+	jmp %%ata_inseg_loop
 %%ata_inseg_ready
 %endmacro
 
@@ -53,12 +54,13 @@ extern ata_is_ready
 	pop ebx
 	pop esi
 	pop ebp
-.ata_outseg_loop
+%%ata_outseg_loop
 	call ata_is_ready
 	cmp eax, 1
-	je .ata_outseg_ready
+	je %%ata_outseg_ready
 	call suspend_call
-.ata_outseg_ready
+	jmp %%ata_outseg_loop
+%%ata_outseg_ready
 %endmacro
 
 %endif
